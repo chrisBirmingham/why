@@ -78,11 +78,7 @@ local MIME_TYPES = {
 }
 
 local function detect(ext)
-  if not MIME_TYPES[ext] then
-    return 'application/octet-stream'
-  end
-
-  return MIME_TYPES[ext]
+  return MIME_TYPES[ext] or 'application/octet-stream'
 end
 
 return {

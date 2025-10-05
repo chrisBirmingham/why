@@ -1,7 +1,16 @@
 #!/usr/bin/env lua
 
 local error = error
+local pairs = pairs
+local table = table
 local tonumber = tonumber
+
+local STATUS = {
+  [200] = 'Ok',
+  [400] = 'Bad Request',
+  [404] = 'Not Found',
+  [500] = 'Internal Server Error'
+}
 
 local function validate_headers(headers)
 	if headers.CONTENT_LENGTH == '' then
@@ -54,7 +63,18 @@ local function parse(request)
   return headers
 end
 
+local function build_header(status, headers)
+  local block = {('Status: %i %s'):format(status, STATUS[status])}
+
+  for k, v in pairs(headers) do
+    table.insert(block, ('%s: %s'):format(k, v))
+  end
+
+  return table.concat(block, "\r\n") .. "\r\n\r\n"
+end
+
 return {
-  parse = parse
+  parse = parse,
+  build_header = build_header
 }
 

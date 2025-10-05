@@ -1,6 +1,8 @@
 CC?=gcc
 OBJ=fs.so server.so
 
+.PHONEY: all clean
+
 all: $(OBJ)
 
 %.o: %.c

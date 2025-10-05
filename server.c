@@ -9,10 +9,12 @@
 
 static const char* SOCKET_META = "lua_socket";
 static const char* CLIENT_SOCKET_META = "lua_client_socket";
+
+#define BUFFER_SIZE 512
     
 static int socket_factory(lua_State* L)
 {
-	int port = luaL_checknumber(L, 1);
+  int port = luaL_checknumber(L, 1);
   int* fd = (int*)lua_newuserdata(L, sizeof(int));
 
   /* set its metatable */
@@ -46,7 +48,7 @@ static int socket_factory(lua_State* L)
 
 static int socket_accept(lua_State* L)
 {
-	int* fd = (int*)lua_touserdata(L, 1);
+  int* fd = (int*)lua_touserdata(L, 1);
   int* client_fd = (int*)lua_newuserdata(L, sizeof(int));
 
   /* set its metatable */
@@ -66,21 +68,21 @@ static int socket_accept(lua_State* L)
 
 static int client_recv(lua_State* L)
 {
-	int* fd = (int*)lua_touserdata(L, 1);
+  int* fd = (int*)lua_touserdata(L, 1);
   luaL_Buffer buf;
   luaL_buffinit(L, &buf);
   ssize_t bytes;
 
   do {
-    char buffer[500];
-    bytes = recv(*fd, buffer, 500, 0);
+    char buffer[BUFFER_SIZE];
+    bytes = recv(*fd, buffer, BUFFER_SIZE, 0);
 
     if (bytes < 0) {
       luaL_error(L, "Failed to read new connection: %s", strerror(errno));
     }
 
     luaL_addlstring(&buf, buffer, bytes);
-  } while (bytes == 500);
+  } while (bytes == BUFFER_SIZE);
 
   luaL_pushresult(&buf);
   return 1;
@@ -88,7 +90,7 @@ static int client_recv(lua_State* L)
 
 static int client_send(lua_State* L)
 {
-	int* fd = (int*)lua_touserdata(L, 1);
+  int* fd = (int*)lua_touserdata(L, 1);
   const char* buffer = luaL_checkstring(L, 2);
   lua_Integer len = luaL_len(L, 2);
 
@@ -110,13 +112,13 @@ static int client_send(lua_State* L)
 
 static int socket_close(lua_State* L)
 {
-	int* fd = (int*)lua_touserdata(L, 1);
+  int* fd = (int*)lua_touserdata(L, 1);
 
-	if (fd != NULL) {
-		close(*fd);
-	}
+  if (fd != NULL) {
+    close(*fd);
+  }
 
-	return 0;
+  return 0;
 }
 
 static const struct luaL_Reg client_socket_methods[] = {
@@ -158,6 +160,6 @@ int luaopen_server(lua_State* L)
   create_client_socket_meta(L);
   create_socket_meta(L);
   luaL_newlib(L, server_funcs);
-	return 1;
+  return 1;
 }
 

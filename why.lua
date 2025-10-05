@@ -21,22 +21,12 @@ local function endswith(str, needle)
   return suffix == needle
 end
 
-local function send_error(client, not_found)
-  if not_found then
-    client:send("Status: 404 Not Found\r\n\r\nNot found bro")
-  else
-    client:send("Status: 400 Bad Request\r\nContent-Type: text/plain\r\n\r\nBad request bro")
-  end
-  client:close()
-end
-
 local function process_request(client, files)
   local request = client:recv()
   local status, headers = pcall(scgi.parse, request)
 
   if not status then
-    send_error(client, false)
-    return
+    error({code = 400, msg = headers})
   end
 
   local request_uri = headers.REQUEST_URI
@@ -49,19 +39,11 @@ local function process_request(client, files)
   local path = table.concat({headers.DOCUMENT_ROOT, headers.REQUEST_URI, index})
 
   if not files[path] then
-    send_error(client, true)
-    return
+    error({code = 404, msg = 'Unknown file'})
   end
 
   local content = slurp(path)
-  local res = ("Status: 200 OK\r\nContent-Type: %s\r\nContent-Length: %s\r\n\r\n"):format(
-    files[path],
-    #content
-  )
-
-  client:send(res)
-  client:send(content)
-  client:close()
+  return { ['Content-Type'] = files[path] }, content
 end
 
 local function get_files(dir, files)
@@ -90,7 +72,17 @@ local function main()
 
   while true do
     local client = socket:accept()
-    process_request(client, files)
+    local status, resp, body = pcall(process_request, client, files)
+
+    if not status then
+      client:send(scgi.build_header(resp.code, {}))
+      client:send(resp.msg)
+    else
+      client:send(scgi.build_header(200, resp))
+      client:send(body)
+    end
+
+    client:close()
   end
 end
 
