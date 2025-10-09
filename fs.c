@@ -61,7 +61,13 @@ static int dir_iter(lua_State* L)
   DIR* d = *(DIR**)lua_touserdata(L, lua_upvalueindex(1));
   struct dirent* entry;
 
-  if ((entry = readdir(d)) != NULL) {
+  do {
+    entry = readdir(d);
+  } while (
+      entry && (strcmp(entry->d_name, "..") == 0 || strcmp(entry->d_name, ".") == 0)
+  );
+
+  if (entry) {
     lua_pushstring(L, entry->d_name);
     return 1;
   }

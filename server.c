@@ -11,6 +11,26 @@ static const char* SOCKET_META = "lua_socket";
 static const char* CLIENT_SOCKET_META = "lua_client_socket";
 
 #define BUFFER_SIZE 512
+
+static int socket_accept(lua_State* L)
+{
+  int* fd = (int*)lua_touserdata(L, lua_upvalueindex(1));
+  int* client_fd = (int*)lua_newuserdata(L, sizeof(int));
+
+  /* set its metatable */
+  luaL_getmetatable(L, CLIENT_SOCKET_META);
+  lua_setmetatable(L, -2);
+
+  struct sockaddr_in address;
+  socklen_t addrlen = sizeof(address);
+  *client_fd = accept(*fd, (struct sockaddr *)&address, &addrlen);
+
+  if (*client_fd < 0) {
+    luaL_error(L, "Failed to accept new connection: %s", strerror(errno));
+  }
+
+  return 1;
+}
     
 static int socket_factory(lua_State* L)
 {
@@ -43,25 +63,7 @@ static int socket_factory(lua_State* L)
     luaL_error(L, "Faled to listen to socket: %s", strerror(errno));
   }
 
-  return 1;
-}
-
-static int socket_accept(lua_State* L)
-{
-  int* fd = (int*)lua_touserdata(L, 1);
-  int* client_fd = (int*)lua_newuserdata(L, sizeof(int));
-
-  /* set its metatable */
-  luaL_getmetatable(L, CLIENT_SOCKET_META);
-  lua_setmetatable(L, -2);
-
-  struct sockaddr_in address;
-  socklen_t addrlen = sizeof(address);
-  *client_fd = accept(*fd, (struct sockaddr *)&address, &addrlen);
-
-  if (*client_fd < 0) {
-    luaL_error(L, "Failed to accept new connection: %s", strerror(errno));
-  }
+  lua_pushcclosure(L, socket_accept, 1);
 
   return 1;
 }
@@ -128,7 +130,6 @@ static const struct luaL_Reg client_socket_methods[] = {
 };
 
 static const struct luaL_Reg socket_methods[] = {
-  {"accept", socket_accept},
   {"__close", socket_close},
   {"__gc", socket_close},
   {NULL, NULL}

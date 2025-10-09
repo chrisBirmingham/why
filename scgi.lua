@@ -64,6 +64,8 @@ local function parse(request)
 end
 
 local function build_header(status, headers)
+  headers = headers or {}
+
   local block = {('Status: %i %s'):format(status, STATUS[status])}
 
   for k, v in pairs(headers) do
