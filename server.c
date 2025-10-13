@@ -96,6 +96,10 @@ static int client_send(lua_State* L)
   const char* buffer = luaL_checkstring(L, 2);
   lua_Integer len = luaL_len(L, 2);
 
+  if (len == 0) {
+    return 0;
+  }
+
   size_t written = 0;
   size_t left = len;
 

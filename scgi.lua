@@ -72,7 +72,9 @@ local function build_header(status, headers)
     table.insert(block, ('%s: %s'):format(k, v))
   end
 
-  return table.concat(block, "\r\n") .. "\r\n\r\n"
+  table.insert(block, "\r\n")
+
+  return table.concat(block, "\r\n")
 end
 
 return {
