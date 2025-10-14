@@ -1,5 +1,3 @@
-#!/usr/bin/env lua
-
 local error = error
 local pairs = pairs
 local table = table
@@ -7,10 +5,21 @@ local tonumber = tonumber
 
 local STATUS = {
   [200] = 'Ok',
+  [304] = 'Not Modified',
   [400] = 'Bad Request',
   [404] = 'Not Found',
   [500] = 'Internal Server Error'
 }
+
+local function split_header(header)
+  local items = {}
+
+  for s in header:gmatch('[^,%s]+') do
+    items[s] = 1
+  end
+
+  return items
+end
 
 local function validate_headers(headers)
 	if headers.CONTENT_LENGTH == '' then
@@ -60,6 +69,11 @@ end
 local function parse(request)
   local headers = parse_headers(request)
   validate_headers(headers)
+
+  if headers.HTTP_ACCEPT_ENCODING then
+    headers.HTTP_ACCEPT_ENCODING = split_header(headers.HTTP_ACCEPT_ENCODING)
+  end
+
   return headers
 end
 

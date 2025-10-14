@@ -2,10 +2,12 @@
 
 local arg = arg
 local fs = require('fs')
+local hash = require('hash')
 local ipairs = ipairs
 local mimetype = require('mimetype')
 local pcall = pcall
 local pairs = pairs
+local os = os
 local scgi = require('scgi')
 local server = require('server')
 local string = string
@@ -30,16 +32,6 @@ local function merge(t1, t2, iter)
   end
 end
 
-local function split(str, pattern)
-  local items = {}
-
-  for s in str:gmatch(pattern) do
-    items[s] = 1
-  end
-
-  return items
-end
-
 local function process_request(client, files)
   local request = client:recv()
   local status, headers = pcall(scgi.parse, request)
@@ -57,21 +49,26 @@ local function process_request(client, files)
 
   local file = files[path]
   local content = file.content
+  local etag = file.etag
+
   local res_headers = {
     ['Content-Type'] = file.mime,
-    ['Content-Length'] = file.length
+    ['Content-Length'] = file.length,
+    ['ETag'] = etag
   }
 
-  if headers.HTTP_ACCEPT_ENCODING then
-    local header = split(headers.HTTP_ACCEPT_ENCODING, '[^,%s]+')
+  local none_match = headers.HTTP_IF_NONE_MATCH or ''
+  if none_match == etag then
+    return {code = 304, headers = {['ETag'] = etag}}
+  end
 
-    for _, encoding in ipairs({'br', 'gzip'}) do
-      if header[encoding] and file[encoding] ~= nil then
-        res_headers['Content-Encoding'] = encoding
-        res_headers['Content-Length'] = file[encoding]['length']
-        content = file[encoding]['content']
-        break
-      end
+  local accept_encoding = headers.HTTP_ACCEPT_ENCODING or {}
+  for _, encoding in ipairs({'br', 'gzip'}) do
+    if accept_encoding[encoding] and file[encoding] ~= nil then
+      res_headers['Content-Encoding'] = encoding
+      res_headers['Content-Length'] = file[encoding].length
+      content = file[encoding].content
+      break
     end
   end
 
@@ -84,7 +81,7 @@ end
 local function on_connect(client, files)
   local status, resp = pcall(process_request, client, files)
   client:send(scgi.build_header(resp.code or 200, resp.headers))
-  client:send(resp.content or resp.msg)
+  client:send(resp.content or resp.msg or '')
   client:close()
 end
 
@@ -107,6 +104,7 @@ local function add_file(path)
     mime = mimetype.detect(fs.extname(path)),
     length = #content,
     content = content,
+    etag = string.format("%x", hash.murmur(content)),
     gzip = get_compressed_file(path .. '.gz'),
     br = get_compressed_file(path .. '.br')
   }
@@ -133,10 +131,16 @@ local function get_files(dir)
 end
 
 local function main()
+  if #arg == 0 or #arg > 2 then
+    print('Incorrect number of arguments')
+    os.exit(1)
+  end
+
   local document_root = arg[1]
+  local port = tonumber(arg[2]) or 8000
   local files = get_files(document_root)
 
-  for client in server.bind(8000) do
+  for client in server.bind(port) do
     on_connect(client, files)
   end
 end

@@ -17,7 +17,7 @@ static int fs_extname(lua_State* L)
   const char* base = basename(copy);
   const char* dot = strrchr(base, '.');
 
-  if (!dot || dot == base) {
+  if (dot == NULL || dot == base) {
     lua_pushstring(L, "");
   }
 

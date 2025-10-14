@@ -1,5 +1,5 @@
 CC?=gcc
-OBJ=fs.so server.so
+OBJ=fs.so server.so hash.so
 CFLAGS=-fpic -Wall -std=c11
 CLIB=$(shell pkg-config --cflags --libs lua5.4)
 
