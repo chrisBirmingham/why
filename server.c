@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
@@ -14,22 +15,34 @@ static const char* CLIENT_SOCKET_META = "lua_client_socket";
 
 static int socket_accept(lua_State* L)
 {
-  int* fd = (int*)lua_touserdata(L, lua_upvalueindex(1));
-  int* client_fd = (int*)lua_newuserdata(L, sizeof(int));
+  int* fd = (int*)luaL_checkudata(L, 1, SOCKET_META);
+  luaL_checktype(L, 2, LUA_TFUNCTION);
+  lua_pushvalue(L, 2); // Push a copy onto the stack
 
-  /* set its metatable */
-  luaL_getmetatable(L, CLIENT_SOCKET_META);
-  lua_setmetatable(L, -2);
+  while (1) {
+    int* client_fd = (int*)lua_newuserdata(L, sizeof(int));
 
-  struct sockaddr_in address;
-  socklen_t addrlen = sizeof(address);
-  *client_fd = accept(*fd, (struct sockaddr *)&address, &addrlen);
+    /* set its metatable */
+    luaL_getmetatable(L, CLIENT_SOCKET_META);
+    lua_setmetatable(L, -2);
 
-  if (*client_fd < 0) {
-    luaL_error(L, "Failed to accept new connection: %s", strerror(errno));
+    struct sockaddr_in address;
+    socklen_t addrlen = sizeof(address);
+    *client_fd = accept(*fd, (struct sockaddr *)&address, &addrlen);
+
+    if (*client_fd < 0) {
+      luaL_error(L, "Failed to accept new connection: %s", strerror(errno));
+    }
+
+    /* call pops the udata and func off of the stack */
+    lua_call(L, 1, 0);
+    close(*client_fd);
+
+    /* Push copy back onto stack so we can call again */
+    lua_pushvalue(L, 2);
   }
 
-  return 1;
+  return 0;
 }
     
 static int socket_factory(lua_State* L)
@@ -63,14 +76,12 @@ static int socket_factory(lua_State* L)
     luaL_error(L, "Faled to listen to socket: %s", strerror(errno));
   }
 
-  lua_pushcclosure(L, socket_accept, 1);
-
   return 1;
 }
 
 static int client_recv(lua_State* L)
 {
-  int* fd = (int*)lua_touserdata(L, 1);
+  int* fd = (int*)luaL_checkudata(L, 1, CLIENT_SOCKET_META);
   luaL_Buffer buf;
   luaL_buffinit(L, &buf);
   ssize_t bytes;
@@ -92,7 +103,7 @@ static int client_recv(lua_State* L)
 
 static int client_send(lua_State* L)
 {
-  int* fd = (int*)lua_touserdata(L, 1);
+  int* fd = (int*)luaL_checkudata(L, 1, CLIENT_SOCKET_META);
   const char* buffer = luaL_checkstring(L, 2);
   lua_Integer len = luaL_len(L, 2);
 
@@ -130,10 +141,10 @@ static int socket_close(lua_State* L)
 static const struct luaL_Reg client_socket_methods[] = {
   {"recv", client_recv},
   {"send", client_send},
-  {"close", socket_close}
 };
 
 static const struct luaL_Reg socket_methods[] = {
+  {"accept", socket_accept},
   {"__close", socket_close},
   {"__gc", socket_close},
   {NULL, NULL}

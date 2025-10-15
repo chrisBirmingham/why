@@ -78,13 +78,6 @@ local function process_request(client, files)
   }
 end
 
-local function on_connect(client, files)
-  local status, resp = pcall(process_request, client, files)
-  client:send(scgi.build_header(resp.code or 200, resp.headers))
-  client:send(resp.content or resp.msg or '')
-  client:close()
-end
-
 local function get_compressed_file(path)
   if not fs.exist(path) then
     return nil
@@ -139,10 +132,13 @@ local function main()
   local document_root = arg[1]
   local port = tonumber(arg[2]) or 8000
   local files = get_files(document_root)
+  local socket = server.bind(port)
 
-  for client in server.bind(port) do
-    on_connect(client, files)
-  end
+  socket:accept(function(client)
+    local status, resp = pcall(process_request, client, files)
+    client:send(scgi.build_header(resp.code or 200, resp.headers))
+    client:send(resp.content or resp.msg or '')
+  end)
 end
 
 main()
