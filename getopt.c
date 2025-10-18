@@ -55,6 +55,7 @@ static int lua_getopt(lua_State* L)
   }
 
   lua_newtable(L);
+  /* Add remaining non options to separate table */
   for (unsigned int pos = 1; optind < argc;) {
     lua_pushstring(L, argv[optind++]);
     lua_seti(L, -2, pos++);

@@ -3,10 +3,11 @@
 local fs = require('fs')
 local getopt = require('getopt')
 local hash = require('hash')
+local io = io
 local ipairs = ipairs
 local mimetype = require('mimetype')
-local pcall = pcall
 local pairs = pairs
+local pcall = pcall
 local os = os
 local scgi = require('scgi')
 local server = require('server')
@@ -24,6 +25,7 @@ A SCGI static file server
   -h Show this message and exit]]
 
 local VERSION = '1.0.0'
+local DEFAULT_PORT = 8000
 
 local function slurp(path)
   local file = io.open(path, 'rb')
@@ -35,9 +37,8 @@ local function endswith(str, needle)
   return suffix == needle
 end
 
-function table.merge(t1, t2, iter)
-  local iter = iter or pairs
-  for k, v in iter(t2) do
+function table.merge(t1, t2)
+  for k, v in pairs(t2) do
     t1[k] = v
   end
 end
@@ -141,6 +142,20 @@ local function get_files(dir)
   return files
 end
 
+local function serve(document_root, port)
+  local files = get_files(document_root)
+  local socket = server.bind(port)
+
+  socket:accept(function(client)
+    local headers, content = process_request(client:recv(), files)
+    client:send(headers)
+
+    if content then
+      client:send(content)
+    end
+  end)
+end
+
 local function main()
   local opts, args = getopt.parse('vhp:')
 
@@ -150,20 +165,16 @@ local function main()
   end
 
   if not args[1] then
-    print('Missing document root argument')
-    print(USAGE)
+    io.stderr:write([[Missing document root argument
+Try 'why -h' for more information]])
     os.exit(1)
   end
 
-  local document_root = args[1]
-  local port = tonumber(opts.p) or 8000
-  local files = get_files(document_root)
-  local socket = server.bind(port)
+  local port = tonumber(opts.p) or DEFAULT_PORT
 
-  socket:accept(function(client)
-    local headers, content = process_request(client:recv(), files)
-    client:send(headers .. (content or ''))
-  end)
+  if not pcall(serve(args[1], port)) then
+    io.stderr:write(err)
+  end
 end
 
 main()
