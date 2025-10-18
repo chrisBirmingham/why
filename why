@@ -53,22 +53,27 @@ function table.contains(needle, haystack)
 end
 
 local function process_request(request, files)
-  local status, headers = pcall(scgi.parse_request, request)
+  local ok, headers = pcall(scgi.parse_request, request)
 
-  if not status then
-    return scgi.build_response(STATUS.BAD_REQUEST), headers
+  if not ok then
+    return scgi.build_error_response(
+      STATUS.BAD_REQUEST,
+      'Server received an invalid request'
+    )
   end
 
   local path = headers.DOCUMENT_ROOT .. headers.REQUEST_URI
 
   if not files[path] then
-    return scgi.build_response(STATUS.NOT_FOUND), 'Unknown file'
+    return scgi.build_error_response(
+      STATUS.NOT_FOUND,
+      'The requested file doesn\'t exist'
+    )
   end
 
   local file = files[path]
   local content = file.content
   local etag = file.etag
-
   local res_headers = {
     ['Content-Type'] = file.mime,
     ['Content-Length'] = file.length,
@@ -76,11 +81,13 @@ local function process_request(request, files)
   }
 
   local none_match = headers.HTTP_IF_NONE_MATCH or ''
+
   if none_match == etag then
     return scgi.build_response(STATUS.NOT_MODIFIED, {['ETag'] = etag})
   end
 
   local accept_encoding = headers.HTTP_ACCEPT_ENCODING or {}
+
   for _, encoding in ipairs({'br', 'gzip'}) do
     if accept_encoding[encoding] and file[encoding] ~= nil then
       res_headers['Content-Encoding'] = encoding
@@ -151,11 +158,20 @@ local function serve(document_root, port)
   local socket = server.bind(port)
 
   socket:accept(function(client)
-    local headers, content = process_request(client:recv(), files)
-    client:send(headers)
+    local ok, headers, content = pcall(process_request, client:recv(), files)
 
-    if content then
-      client:send(content)
+    if not ok then
+      local error_res = scgi.build_error_response(
+        STATUS.INTERNAL_SERVER_ERROR,
+        'Server encountered an error while processing the request'
+      )
+      client:send(error_res)
+    else
+      client:send(headers)
+
+      if content then
+        client:send(content)
+      end
     end
   end)
 end
@@ -175,9 +191,9 @@ Try 'why -h' for more information]])
   end
 
   local port = tonumber(opts.p) or DEFAULT_PORT
-  local status, err = pcall(serve, args[1], port)
+  local ok, err = pcall(serve, args[1], port)
 
-  if not status then
+  if not ok then
     io.stderr:write(err)
   end
 end

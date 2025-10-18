@@ -11,6 +11,18 @@ local STATUS = {
   INTERNAL_SERVER_ERROR = '500 Internal Server Error'
 }
 
+local ERROR_PAGE = [[
+<html>
+  <head>
+    <title>$status</title>
+  </head>
+  <body>
+    <h1>$status</h1>
+    <p>$message</p>
+  </body>
+</html>
+]]
+
 local function split_header(header)
   local items = {}
 
@@ -91,9 +103,16 @@ local function build_response(status, headers)
   return table.concat(block, "\r\n")
 end
 
+local function build_error_response(status, message)
+  local headers = build_response(status)
+  local error_page = ERROR_PAGE:gsub('$status', status):gsub('$message', message)
+  return headers .. error_page
+end
+
 return {
   STATUS = STATUS,
   parse_request = parse_request,
-  build_response = build_response
+  build_response = build_response,
+  build_error_response = build_error_response
 }
 
