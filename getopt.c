@@ -17,8 +17,11 @@ static int lua_getopt(lua_State* L)
 
   /* Plus one because progname is at 0 at not counted as part of len */
   unsigned int argc = luaL_len(L, -1) + 1;
-  char** argv = malloc(argc * sizeof(char*) + 1);
-  argv[argc] = NULL; 
+  char** argv = malloc(argc * sizeof(char*));
+
+  if (argv == NULL) {
+    luaL_error(L, "Couldn't allocate memory for getopt");
+  }
 
   /* Convert global arg table to c array for getopt */
   for (unsigned int i = 0; i < argc; i++) {
@@ -65,7 +68,7 @@ static int lua_getopt(lua_State* L)
 
 static const struct luaL_Reg getopt_funcs[] = {
   {"parse", lua_getopt},
-	{NULL,	NULL}
+  {NULL,	NULL}
 };
 
 int luaopen_getopt(lua_State* L)

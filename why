@@ -16,6 +16,15 @@ local table = table
 local tonumber = tonumber
 local io = io
 
+local USAGE = [[Usage: why [OPTION] document_root
+A SCGI static file server
+
+  -p The port to use (Default 8000)
+  -v Print version and exit
+  -h Show this message and exit]]
+
+local VERSION = '1.0.0'
+
 local function slurp(path)
   local file = io.open(path, 'rb')
   return file:read('*all')
@@ -133,10 +142,16 @@ local function get_files(dir)
 end
 
 local function main()
-  local opts, args = getopt.parse('p:')
+  local opts, args = getopt.parse('vhp:')
+
+  if opts.h or opts.v then
+    print(opts.h and USAGE or VERSION)
+    return
+  end
 
   if not args[1] then
     print('Missing document root argument')
+    print(USAGE)
     os.exit(1)
   end
 
