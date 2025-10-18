@@ -32,9 +32,8 @@ local function slurp(path)
   return file:read('*all')
 end
 
-local function endswith(str, needle)
-  local suffix = str:sub(-(#needle))
-  return suffix == needle
+function string:endswith(ending)
+  return self:sub(-#ending) == ending
 end
 
 function table.merge(t1, t2)
@@ -60,8 +59,7 @@ local function process_request(request, files)
     return scgi.build_response(STATUS.BAD_REQUEST), headers
   end
 
-  local index = endswith(headers.REQUEST_URI, '/') and 'index.html' or ''
-  local path = table.concat({headers.DOCUMENT_ROOT, headers.REQUEST_URI, index})
+  local path = headers.DOCUMENT_ROOT .. headers.REQUEST_URI
 
   if not files[path] then
     return scgi.build_response(STATUS.NOT_FOUND), 'Unknown file'
@@ -123,7 +121,7 @@ end
 local function get_files(dir)
   local files = {}
 
-  if not endswith(dir, '/') then
+  if not dir:endswith('/') then
     dir = dir .. '/'
   end
 
@@ -134,7 +132,13 @@ local function get_files(dir)
       local ext = fs.extname(path)
 
       if not table.contains(ext, {'.gz', '.br'}) then
-        files[path] = add_file(path, ext)
+        local file = add_file(path, ext)
+        files[path] = file
+
+        -- If we have an index file, alias the directory to it
+        if fs.basename(path) == 'index.html' then
+          files[dir] = file
+        end
       end
     end
   end
@@ -171,8 +175,9 @@ Try 'why -h' for more information]])
   end
 
   local port = tonumber(opts.p) or DEFAULT_PORT
+  local status, err = pcall(serve, args[1], port)
 
-  if not pcall(serve(args[1], port)) then
+  if not status then
     io.stderr:write(err)
   end
 end

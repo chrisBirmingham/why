@@ -140,6 +140,7 @@ static int socket_close(lua_State* L)
 static const struct luaL_Reg client_socket_methods[] = {
   {"recv", client_recv},
   {"send", client_send},
+  {NULL, NULL}
 };
 
 static const struct luaL_Reg socket_methods[] = {

@@ -26,6 +26,15 @@ static int fs_extname(lua_State* L)
   return 1;
 }
 
+static int fs_basename(lua_State* L)
+{
+  const char* path = luaL_checkstring(L, 1);
+  char* copy = strdup(path);
+  lua_pushstring(L, basename(copy));
+  free(copy);
+  return 1;
+}
+
 static int fs_exist(lua_State* L)
 {
   const char* path = luaL_checkstring(L, 1);
@@ -75,9 +84,7 @@ static int fs_scandir(lua_State* L)
   lua_newtable(L);
 
   for (unsigned int i = 0; i < res; i++) {
-    lua_pushstring(L, directory);
-    lua_pushstring(L, namelist[i]->d_name);
-    lua_concat(L, 2);
+    lua_pushfstring(L, "%s%s", directory, namelist[i]->d_name);
     lua_rawseti(L, -2, i + 1);
     free(namelist[i]);
   }
@@ -88,6 +95,7 @@ static int fs_scandir(lua_State* L)
 
 static const struct luaL_Reg fs_funcs[] = {
   {"exist", fs_exist},
+  {"basename", fs_basename},
   {"scandir", fs_scandir},
   {"extname", fs_extname},
   {"is_dir", is_dir},

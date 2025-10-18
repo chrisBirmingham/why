@@ -61,10 +61,9 @@ static int lua_murmurhash(lua_State* L)
   return 1;
 }
 
-
 static const struct luaL_Reg hash_funcs[] = {
   {"murmur", lua_murmurhash},
-	{NULL,	NULL}
+  {NULL, NULL}
 };
 
 int luaopen_hash(lua_State* L)
