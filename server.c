@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
@@ -145,8 +144,7 @@ static const struct luaL_Reg client_socket_methods[] = {
 
 static const struct luaL_Reg socket_methods[] = {
   {"accept", socket_accept},
-  {"__close", socket_close},
-  {"__gc", socket_close},
+  {"close", socket_close},
   {NULL, NULL}
 };
 

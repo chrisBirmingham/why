@@ -4,11 +4,11 @@ local table = table
 local tonumber = tonumber
 
 local STATUS = {
-  [200] = 'Ok',
-  [304] = 'Not Modified',
-  [400] = 'Bad Request',
-  [404] = 'Not Found',
-  [500] = 'Internal Server Error'
+  OK = '200 Ok',
+  NOT_MODIFIED = '304 Not Modified',
+  BAD_REQUEST = '400 Bad Request',
+  NOT_FOUND = '404 Not Found',
+  INTERNAL_SERVER_ERROR = '500 Internal Server Error'
 }
 
 local function split_header(header)
@@ -66,7 +66,7 @@ local function parse_headers(request)
   return headers
 end
 
-local function parse(request)
+local function parse_request(request)
   local headers = parse_headers(request)
   validate_headers(headers)
 
@@ -77,10 +77,10 @@ local function parse(request)
   return headers
 end
 
-local function build_header(status, headers)
+local function build_response(status, headers)
   headers = headers or {}
 
-  local block = {('Status: %i %s'):format(status, STATUS[status])}
+  local block = {('Status: %s'):format(status)}
 
   for k, v in pairs(headers) do
     table.insert(block, ('%s: %s'):format(k, v))
@@ -92,7 +92,8 @@ local function build_header(status, headers)
 end
 
 return {
-  parse = parse,
-  build_header = build_header
+  STATUS = STATUS,
+  parse_request = parse_request,
+  build_response = build_response
 }
 

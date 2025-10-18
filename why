@@ -1,7 +1,7 @@
 #!/usr/bin/env lua
 
-local arg = arg
 local fs = require('fs')
+local getopt = require('getopt')
 local hash = require('hash')
 local ipairs = ipairs
 local mimetype = require('mimetype')
@@ -10,6 +10,7 @@ local pairs = pairs
 local os = os
 local scgi = require('scgi')
 local server = require('server')
+local STATUS = scgi.STATUS
 local string = string
 local table = table
 local tonumber = tonumber
@@ -25,26 +26,35 @@ local function endswith(str, needle)
   return suffix == needle
 end
 
-local function merge(t1, t2, iter)
+function table.merge(t1, t2, iter)
   local iter = iter or pairs
   for k, v in iter(t2) do
     t1[k] = v
   end
 end
 
-local function process_request(client, files)
-  local request = client:recv()
-  local status, headers = pcall(scgi.parse, request)
+function table.contains(needle, haystack)
+  for _, v in ipairs(haystack) do
+    if v == needle then
+      return true
+    end
+  end
+
+  return false
+end
+
+local function process_request(request, files)
+  local status, headers = pcall(scgi.parse_request, request)
 
   if not status then
-    error({code = 400, msg = headers})
+    return scgi.build_response(STATUS.BAD_REQUEST), headers
   end
 
   local index = endswith(headers.REQUEST_URI, '/') and 'index.html' or ''
   local path = table.concat({headers.DOCUMENT_ROOT, headers.REQUEST_URI, index})
 
   if not files[path] then
-    error({code = 404, msg = 'Unknown file'})
+    return scgi.build_response(STATUS.NOT_FOUND), 'Unknown file'
   end
 
   local file = files[path]
@@ -59,7 +69,7 @@ local function process_request(client, files)
 
   local none_match = headers.HTTP_IF_NONE_MATCH or ''
   if none_match == etag then
-    return {code = 304, headers = {['ETag'] = etag}}
+    return scgi.build_response(STATUS.NOT_MODIFIED, {['ETag'] = etag})
   end
 
   local accept_encoding = headers.HTTP_ACCEPT_ENCODING or {}
@@ -72,10 +82,7 @@ local function process_request(client, files)
     end
   end
 
-  return {
-    content = content,
-    headers = res_headers
-  }
+  return scgi.build_response(STATUS.OK, res_headers), content
 end
 
 local function get_compressed_file(path)
@@ -90,11 +97,11 @@ local function get_compressed_file(path)
   }
 end
 
-local function add_file(path)
+local function add_file(path, ext)
   local content = slurp(path)
 
   return {
-    mime = mimetype.detect(fs.extname(path)),
+    mime = mimetype.detect(ext),
     length = #content,
     content = content,
     etag = string.format("%x", hash.murmur(content)),
@@ -111,11 +118,13 @@ local function get_files(dir)
   end
 
   for _, path in ipairs(fs.scandir(dir)) do
-    if not endswith(path, '.gz') and not endswith(path, '.br') then
-      if fs.is_dir(path) then
-        merge(files, get_files(path))
-      else
-        files[path] = add_file(path)
+    if fs.is_dir(path) then
+      table.merge(files, get_files(path))
+    else
+      local ext = fs.extname(path)
+
+      if not table.contains(ext, {'.gz', '.br'}) then
+        files[path] = add_file(path, ext)
       end
     end
   end
@@ -124,20 +133,21 @@ local function get_files(dir)
 end
 
 local function main()
-  if #arg == 0 or #arg > 2 then
-    print('Incorrect number of arguments')
+  local opts, args = getopt.parse('p:')
+
+  if not args[1] then
+    print('Missing document root argument')
     os.exit(1)
   end
 
-  local document_root = arg[1]
-  local port = tonumber(arg[2]) or 8000
+  local document_root = args[1]
+  local port = tonumber(opts.p) or 8000
   local files = get_files(document_root)
   local socket = server.bind(port)
 
   socket:accept(function(client)
-    local status, resp = pcall(process_request, client, files)
-    client:send(scgi.build_header(resp.code or 200, resp.headers))
-    client:send(resp.content or resp.msg or '')
+    local headers, content = process_request(client:recv(), files)
+    client:send(headers .. (content or ''))
   end)
 end
 
