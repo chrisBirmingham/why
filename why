@@ -155,9 +155,8 @@ end
 
 local function serve(document_root, port)
   local files = get_files(document_root)
-  local socket = server.bind(port)
 
-  socket:accept(function(client)
+  server.listen(port, function(client)
     local ok, headers, content = pcall(process_request, client:recv(), files)
 
     if not ok then

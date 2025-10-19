@@ -2,7 +2,7 @@ CC?=gcc
 SRC=getopt.c fs.c server.c hash.c
 OBJ=$(SRC:.c=.so)
 CFLAGS=-O2 -fpic -Wall -std=c11
-CLIB=$(shell pkg-config --cflags --libs lua5.4)
+CLIB=$(shell pkg-config --cflags --libs lua5.4) -lev
 
 .PHONEY: all clean
 
@@ -12,7 +12,7 @@ all: $(OBJ)
 	$(CC) -Wall $(CFLAGS) -c $< -o $@ $(CLIB)
 
 %.so: %.o
-	$(CC) -shared $(CFLAGS) $< -o $@
+	$(CC) -shared $(CFLAGS) $< -o $@ $(CLIB)
 
 clean:
 	rm -f $(OBJ)
