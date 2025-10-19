@@ -10,29 +10,22 @@
 #include <lualib.h>
 #include <libgen.h>
 
-static int fs_extname(lua_State* L)
+static int fs_fnparts(lua_State* L)
 {
   const char* path = luaL_checkstring(L, 1);
   char* copy = strdup(path);
   const char* base = basename(copy);
+  lua_pushstring(L, base);
   const char* dot = strrchr(base, '.');
 
   if (dot == NULL || dot == base) {
     lua_pushstring(L, "");
+  } else {
+    lua_pushstring(L, dot);
   }
 
-  lua_pushstring(L, dot);
   free(copy);
-  return 1;
-}
-
-static int fs_basename(lua_State* L)
-{
-  const char* path = luaL_checkstring(L, 1);
-  char* copy = strdup(path);
-  lua_pushstring(L, basename(copy));
-  free(copy);
-  return 1;
+  return 2;
 }
 
 static int fs_exist(lua_State* L)
@@ -95,9 +88,8 @@ static int fs_scandir(lua_State* L)
 
 static const struct luaL_Reg fs_funcs[] = {
   {"exist", fs_exist},
-  {"basename", fs_basename},
+  {"fnparts", fs_fnparts},
   {"scandir", fs_scandir},
-  {"extname", fs_extname},
   {"is_dir", is_dir},
   {NULL, NULL}
 };

@@ -97,7 +97,13 @@ local function process_request(request, files)
     end
   end
 
-  return scgi.build_response(STATUS.OK, res_headers), content
+  local response = scgi.build_response(STATUS.OK, res_headers)
+
+  if headers.REQUEST_METHOD == 'HEAD' then
+    return response
+  end
+
+  return response, content
 end
 
 local function get_compressed_file(path)
@@ -136,14 +142,14 @@ local function get_files(dir)
     if fs.is_dir(path) then
       table.merge(files, get_files(path))
     else
-      local ext = fs.extname(path)
+      local basename, ext = fs.fnparts(path)
 
       if not table.contains(ext, {'.gz', '.br'}) then
         local file = add_file(path, ext)
         files[path] = file
 
         -- If we have an index file, alias the directory to it
-        if fs.basename(path) == 'index.html' then
+        if basename == 'index.html' then
           files[dir] = file
         end
       end

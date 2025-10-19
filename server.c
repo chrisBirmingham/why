@@ -62,7 +62,7 @@ static void on_connection(struct ev_loop* loop, ev_io* w, int revents)
     
 static int socket_factory(lua_State* L)
 {
-  int port = luaL_checknumber(L, 1);
+  int port = luaL_checkinteger(L, 1);
   luaL_checktype(L, 2, LUA_TFUNCTION);
 
   /* Store the callback in the global registry */
