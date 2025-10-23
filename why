@@ -19,6 +19,18 @@ local io = io
 
 local magic = mimetype.open()
 
+local COMMON_MIMETYPES = {
+  ['.html'] = 'text/html',
+  ['.htm'] = 'text/html',
+  ['.css'] = 'text/css',
+  ['.txt'] = 'text/plain',
+  ['.jpg'] = 'image/jpeg',
+  ['.jpeg'] = 'image/jpeg',
+  ['.png'] = 'image/png',
+  ['.gif'] = 'image/gif',
+  ['.js'] = 'application/javascript'
+}
+
 local USAGE = [[Usage: why [OPTION] document_root
 A SCGI static file server
 
@@ -28,6 +40,11 @@ A SCGI static file server
 
 local VERSION = '1.0.0'
 local DEFAULT_PORT = 8000
+
+local function throw(err)
+  io.stderr:write(("%s: %s\n"):format(arg[0], err))
+  os.exit(1)
+end
 
 local function slurp(path)
   local file = io.open(path, 'rb')
@@ -124,10 +141,10 @@ local function add_file(path, ext)
   local content = slurp(path)
 
   return {
-    mime = magic:detect(path),
+    mime = COMMON_MIMETYPES[ext] or magic:detect(path),
     length = #content,
     content = content,
-    etag = string.format("%x", hash.murmur(content)),
+    etag = ("%x"):format(hash.murmur(content)),
     gzip = get_compressed_file(path .. '.gz'),
     br = get_compressed_file(path .. '.br')
   }
@@ -191,17 +208,25 @@ local function main()
     return
   end
 
-  if not args[1] then
-    io.stderr:write([[Missing document root argument
-Try 'why -h' for more information]])
-    os.exit(1)
+  local port = DEFAULT_PORT
+
+  if opts.p then
+    port = tonumber(opts.p)
+
+    if not port or port < 0 then
+      throw(('Invalid port provided (%s)'):format(opts.p))
+    end
   end
 
-  local port = tonumber(opts.p) or DEFAULT_PORT
+  if not args[1] then
+    throw([[Missing document root argument
+Try 'why -h' for more information]])
+  end
+
   local ok, err = pcall(serve, args[1], port)
 
   if not ok then
-    io.stderr:write(err)
+    throw(err)
   end
 end
 
