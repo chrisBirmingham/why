@@ -1,31 +1,31 @@
 #include <lua.h>
 #include <lauxlib.h>
 
+static const uint32_t C1 = 0xcc9e2d51;
+static const uint32_t C2 = 0x1b873593;
+static const uint32_t R1 = 15;
+static const uint32_t R2 = 13;
+static const uint32_t M = 5;
+static const uint32_t N = 0xe6546b64;
+
 static uint32_t murmur(const char* key, uint32_t len, uint32_t seed)
 {
-  const uint32_t c1 = 0xcc9e2d51;
-  const uint32_t c2 = 0x1b873593;
-  const uint32_t r1 = 15;
-  const uint32_t r2 = 13;
-  const uint32_t m = 5;
-  const uint32_t n = 0xe6546b64;
-
   uint32_t hash = seed;
 
   const int nblocks = len / 4;
-  const uint32_t *blocks = (const uint32_t *) key;
+  const uint32_t* blocks = (const uint32_t*) key;
   
   for (unsigned int i = 0; i < nblocks; i++) {
     uint32_t k = blocks[i];
-    k *= c1;
-    k = (k << r1) | (k >> (32 - r1));
-    k *= c2;
+    k *= C1;
+    k = (k << R1) | (k >> (32 - R1));
+    k *= C2;
 
     hash ^= k;
-    hash = ((hash << r2) | (hash >> (32 - r2))) * m + n;
+    hash = ((hash << R2) | (hash >> (32 - R2))) * M + N;
   }
 
-  const uint8_t *tail = (const uint8_t *) (key + nblocks * 4);
+  const uint8_t* tail = (const uint8_t*) (key + nblocks * 4);
   uint32_t k1 = 0;
 
   switch (len & 3) {
@@ -36,9 +36,9 @@ static uint32_t murmur(const char* key, uint32_t len, uint32_t seed)
     case 1:
       k1 ^= tail[0];
 
-      k1 *= c1;
-      k1 = (k1 << r1) | (k1 >> (32 - r1));
-      k1 *= c2;
+      k1 *= C1;
+      k1 = (k1 << R1) | (k1 >> (32 - R1));
+      k1 *= C2;
       hash ^= k1;
   }
 

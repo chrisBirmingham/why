@@ -1,0 +1,67 @@
+#include <lua.h>
+#include <lauxlib.h>
+#include <lualib.h>
+#include <magic.h>
+
+static const char* MAGIC_META = "lua_magic";
+
+static int magic_factory(lua_State* L)
+{
+
+  magic_t cookie = magic_open(MAGIC_MIME_TYPE);
+  magic_load(cookie, NULL);
+
+  magic_t* c = (magic_t*)lua_newuserdata(L, sizeof(magic_t*));
+
+  /* set its metatable */
+  luaL_getmetatable(L, MAGIC_META);
+  lua_setmetatable(L, -2);
+
+  *c = cookie;
+
+  return 1;
+}
+    
+static int magic_detect(lua_State* L)
+{
+  magic_t* cookie = (magic_t*)luaL_checkudata(L, 1, MAGIC_META);
+  const char* path = luaL_checkstring(L, 2);
+  const char* type = magic_file(*cookie, path);
+  lua_pushstring(L, type);
+  return 1;
+}
+
+static int magic_destruct(lua_State* L)
+{
+  magic_t* cookie = (magic_t*)luaL_checkudata(L, 1, MAGIC_META);
+  magic_close(*cookie);
+  return 0;
+}
+
+static const struct luaL_Reg magic_methods[] = {
+  {"detect", magic_detect},
+  {"__gc_", magic_destruct},
+  {"__close", magic_destruct},
+  {NULL, NULL}
+};
+
+static const struct luaL_Reg magic_funcs[] = {
+  {"open", magic_factory},
+  {NULL, NULL}
+};
+
+static void create_magic_meta(lua_State* L)
+{
+  luaL_newmetatable(L, MAGIC_META);
+  luaL_setfuncs(L, magic_methods, 0);
+  lua_pushvalue(L, -1);
+  lua_setfield(L, -2, "__index");
+}
+
+int luaopen_mimetype(lua_State* L)
+{
+  create_magic_meta(L);
+  luaL_newlib(L, magic_funcs);
+  return 1;
+}
+

@@ -17,6 +17,8 @@ local table = table
 local tonumber = tonumber
 local io = io
 
+local magic = mimetype.open()
+
 local USAGE = [[Usage: why [OPTION] document_root
 A SCGI static file server
 
@@ -122,7 +124,7 @@ local function add_file(path, ext)
   local content = slurp(path)
 
   return {
-    mime = mimetype.detect(ext),
+    mime = magic:detect(path),
     length = #content,
     content = content,
     etag = string.format("%x", hash.murmur(content)),

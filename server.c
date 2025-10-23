@@ -137,8 +137,8 @@ static int client_recv(lua_State* L)
 static int client_send(lua_State* L)
 {
   int* fd = (int*)luaL_checkudata(L, 1, CLIENT_SOCKET_META);
-  const char* buffer = luaL_checkstring(L, 2);
-  lua_Integer len = luaL_len(L, 2);
+  size_t len;
+  const char* buffer = luaL_checklstring(L, 2, &len);
 
   if (len == 0) {
     return 0;
