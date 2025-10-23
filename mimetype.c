@@ -8,7 +8,15 @@ static const char* MAGIC_META = "lua_magic";
 static int magic_factory(lua_State* L)
 {
   magic_t cookie = magic_open(MAGIC_MIME_TYPE);
-  magic_load(cookie, NULL);
+
+  if (cookie == NULL) {
+    luaL_error(L, "Failed to create magic instance"); 
+  }
+
+  if (magic_load(cookie, NULL) < 0) {
+    magic_close(cookie);
+    luaL_error(L, "Failed to open magic database: %s", magic_error(cookie));
+  }
 
   magic_t* c = (magic_t*)lua_newuserdata(L, sizeof(magic_t*));
 
@@ -26,6 +34,11 @@ static int magic_detect(lua_State* L)
   magic_t* cookie = (magic_t*)luaL_checkudata(L, 1, MAGIC_META);
   const char* path = luaL_checkstring(L, 2);
   const char* type = magic_file(*cookie, path);
+
+  if (type == NULL) {
+    luaL_error(L, "Failed to detect file mimetype: %s", magic_error(*cookie));
+  }
+
   lua_pushstring(L, type);
   return 1;
 }
