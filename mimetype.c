@@ -7,7 +7,6 @@ static const char* MAGIC_META = "lua_magic";
 
 static int magic_factory(lua_State* L)
 {
-
   magic_t cookie = magic_open(MAGIC_MIME_TYPE);
   magic_load(cookie, NULL);
 
@@ -34,13 +33,17 @@ static int magic_detect(lua_State* L)
 static int magic_destruct(lua_State* L)
 {
   magic_t* cookie = (magic_t*)luaL_checkudata(L, 1, MAGIC_META);
-  magic_close(*cookie);
+
+  if (cookie != NULL) {
+    magic_close(*cookie);
+  }
+
   return 0;
 }
 
 static const struct luaL_Reg magic_methods[] = {
   {"detect", magic_detect},
-  {"__gc_", magic_destruct},
+  {"__gc", magic_destruct},
   {"__close", magic_destruct},
   {NULL, NULL}
 };
