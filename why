@@ -8,6 +8,7 @@ local ipairs = ipairs
 local mimetype = require('mimetype')
 local pairs = pairs
 local pcall = pcall
+local print = print
 local os = os
 local scgi = require('scgi')
 local server = require('server')
@@ -15,7 +16,6 @@ local STATUS = scgi.STATUS
 local string = string
 local table = table
 local tonumber = tonumber
-local io = io
 
 local magic = mimetype.open()
 
@@ -181,6 +181,7 @@ end
 local function serve(document_root, port)
   local files = get_files(document_root)
 
+  print('Listening on port ' .. port)
   server.listen(port, function(client)
     local ok, headers, content = pcall(process_request, client:recv(), files)
 
@@ -201,22 +202,22 @@ local function serve(document_root, port)
 end
 
 local function main()
-  local opts, args = getopt.parse('vhp:')
-
-  if opts.h or opts.v then
-    print(opts.h and USAGE or VERSION)
-    return
-  end
-
   local port = DEFAULT_PORT
 
-  if opts.p then
-    port = tonumber(opts.p)
-
-    if not port or port < 0 then
-      throw(('Invalid port provided (%s)'):format(opts.p))
+  local args = getopt.parse('vhp:', function(opt, arg)
+    if opt == 'h' then
+      print(USAGE)
+      os.exit()
+    elseif opt == 'v' then
+      print(VERSION)
+      os.exit()
+    elseif opt == 'p' then
+      port = tonumber(arg)
+      if not port or port < 0 then
+        throw(('Invalid port provided (%s)'):format(arg))
+      end
     end
-  end
+  end)
 
   if not args[1] then
     throw([[Missing document root argument

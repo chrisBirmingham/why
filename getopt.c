@@ -12,6 +12,7 @@ extern int opterr;
 static int lua_getopt(lua_State* L)
 {
   const char* optstring = luaL_checkstring(L, 1);
+  luaL_checktype(L, 2, LUA_TFUNCTION);
 
   lua_getglobal(L, "arg");
 
@@ -26,14 +27,13 @@ static int lua_getopt(lua_State* L)
   /* Convert global arg table to c array for getopt */
   for (unsigned int i = 0; i < argc; i++) {
     lua_pushinteger(L, i);
-    lua_gettable(L, 2);
+    lua_gettable(L, 3);
     argv[i] = (char*)lua_tostring(L, -1);
   }
 
   int c = 0;
   opterr = 0;
 
-  lua_newtable(L);
   while ((c = getopt(argc, argv, optstring)) != -1) {
     if (c == '?') {
       if (strchr(optstring, optopt)) {
@@ -43,7 +43,9 @@ static int lua_getopt(lua_State* L)
       luaL_error(L, "Unknown option -%c", optopt);
     }
 
+    lua_pushvalue(L, 2); /* Copy the function onto the stack as call pops it */
     const char opt[2] = {c, '\0'};
+    lua_pushstring(L, opt);
 
     if (optarg) {
       lua_pushstring(L, optarg);
@@ -51,7 +53,7 @@ static int lua_getopt(lua_State* L)
       lua_pushboolean(L, 1);
     }
 
-    lua_setfield(L, -2, opt);
+    lua_call(L, 2, 0);
   }
 
   lua_newtable(L);
@@ -64,7 +66,7 @@ static int lua_getopt(lua_State* L)
   /* Clean up after ourselves */
   free(argv);
 
-  return 2;
+  return 1;
 }
 
 static const struct luaL_Reg getopt_funcs[] = {
