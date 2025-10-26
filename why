@@ -112,7 +112,7 @@ local function process_request(request, files)
   local accept_encoding = headers.HTTP_ACCEPT_ENCODING or {}
 
   for _, encoding in ipairs({'br', 'gzip'}) do
-    if accept_encoding[encoding] and file[encoding] ~= nil then
+    if accept_encoding[encoding] and file[encoding] then
       res_headers['Content-Encoding'] = encoding
       res_headers['Content-Length'] = file[encoding].length
       content = file[encoding].content
@@ -129,29 +129,31 @@ local function process_request(request, files)
   return response, content
 end
 
-local function get_compressed_file(path)
-  if not fs.exist(path) then
-    return nil
+local function get_compressed_files(path, file)
+  for algo, ext in pairs({gzip = '.gz', br = '.br'}) do
+    local compressed = path .. ext
+    if fs.exist(compressed) then
+      local content = slurp(compressed)
+      file[algo] = {
+        content = content,
+        length = #content
+      }
+    end
   end
-
-  local content = slurp(path)
-  return {
-    content = content,
-    length = #content
-  }
 end
 
 local function add_file(path, ext)
   local content = slurp(path)
 
-  return {
+  local file = {
     mime = COMMON_MIMETYPES[ext] or magic:detect(path),
     length = #content,
     content = content,
-    etag = ("%x"):format(hash.murmur(content)),
-    gzip = get_compressed_file(path .. '.gz'),
-    br = get_compressed_file(path .. '.br')
+    etag = ("%x"):format(hash.murmur(content))
   }
+
+  get_compressed_files(path, file)
+  return file
 end
 
 local function get_files(dir)
@@ -183,7 +185,9 @@ local function get_files(dir)
 end
 
 local function serve(document_root, port)
+  print('Loading files')
   local files = get_files(document_root)
+  print('Files have been loaded')
 
   print('Listening on port ' .. port)
   server.listen(port,

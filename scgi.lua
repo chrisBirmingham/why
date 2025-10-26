@@ -31,8 +31,10 @@ local ERROR_MESSAGES = {
 }
 
 local ERROR_PAGE = [[
+<!DOCTYPE html>
 <html>
   <head>
+    <meta charset="UTF-8">
     <title>$status</title>
   </head>
   <body>
