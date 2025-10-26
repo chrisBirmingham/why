@@ -4,11 +4,30 @@ local table = table
 local tonumber = tonumber
 
 local STATUS = {
-  OK = '200 Ok',
-  NOT_MODIFIED = '304 Not Modified',
-  BAD_REQUEST = '400 Bad Request',
-  NOT_FOUND = '404 Not Found',
-  INTERNAL_SERVER_ERROR = '500 Internal Server Error'
+  OK = 200,
+  NO_CONTENT = 204,
+  NOT_MODIFIED = 304,
+  BAD_REQUEST = 400,
+  NOT_FOUND = 404,
+  METHOD_NOT_ALLOWED = 405,
+  INTERNAL_SERVER_ERROR = 500
+}
+
+local STATUS_LINES = {
+  [200] = '200 Ok',
+  [204] = '204 No Content',
+  [304] = '304 Not Modified',
+  [400] = '400 Bad Request',
+  [404] = '404 Not Found',
+  [405] = '405 Method Not Allowed',
+  [500] = '500 Internal Server Error'
+}
+
+local ERROR_MESSAGES = {
+  [400] = 'Server received an invalid request',
+  [404] = 'The requested file doesn\'t exist',
+  [405] = 'The requested HTTP method is not supported',
+  [500] = 'Server encountered an error while processing the request'
 }
 
 local ERROR_PAGE = [[
@@ -92,7 +111,7 @@ end
 local function build_response(status, headers)
   headers = headers or {}
 
-  local block = {('Status: %s'):format(status)}
+  local block = {('Status: %s'):format(STATUS_LINES[status])}
 
   for k, v in pairs(headers) do
     table.insert(block, ('%s: %s'):format(k, v))
@@ -103,10 +122,18 @@ local function build_response(status, headers)
   return table.concat(block, "\r\n")
 end
 
-local function build_error_response(status, message)
-  local headers = build_response(status)
-  local error_page = ERROR_PAGE:gsub('$status', status):gsub('$message', message)
-  return headers .. error_page
+local function build_error_response(status)
+  local error_page = ERROR_PAGE:gsub('%$(%w+)', {
+    status = STATUS_LINES[status],
+    message = ERROR_MESSAGES[status]
+  })
+
+  local headers = build_response(status, {
+    ['Content-Type'] = 'text/html',
+    ['Content-Length'] = #error_page
+  })
+
+  return headers, error_page
 end
 
 return {

@@ -75,19 +75,23 @@ local function process_request(request, files)
   local ok, headers = pcall(scgi.parse_request, request)
 
   if not ok then
-    return scgi.build_error_response(
-      STATUS.BAD_REQUEST,
-      'Server received an invalid request'
-    )
+    return scgi.build_error_response(STATUS.BAD_REQUEST)
+  end
+
+  local method = headers.REQUEST_METHOD
+
+  if not table.contains(method, {'HEAD', 'GET', 'OPTIONS'}) then
+    return scgi.build_error_response(STATUS.METHOD_NOT_ALLOWED)
+  end
+
+  if method == 'OPTIONS' then
+    return scgi.build_response(STATUS.NO_CONTENT, {Allow = 'OPTIONS, HEAD, GET'})
   end
 
   local path = headers.DOCUMENT_ROOT .. headers.REQUEST_URI
 
   if not files[path] then
-    return scgi.build_error_response(
-      STATUS.NOT_FOUND,
-      'The requested file doesn\'t exist'
-    )
+    return scgi.build_error_response(STATUS.NOT_FOUND)
   end
 
   local file = files[path]
@@ -96,13 +100,13 @@ local function process_request(request, files)
   local res_headers = {
     ['Content-Type'] = file.mime,
     ['Content-Length'] = file.length,
-    ['ETag'] = etag
+    ETag = etag
   }
 
   local none_match = headers.HTTP_IF_NONE_MATCH or ''
 
   if none_match == etag then
-    return scgi.build_response(STATUS.NOT_MODIFIED, {['ETag'] = etag})
+    return scgi.build_response(STATUS.NOT_MODIFIED, {ETag = etag})
   end
 
   local accept_encoding = headers.HTTP_ACCEPT_ENCODING or {}
@@ -118,7 +122,7 @@ local function process_request(request, files)
 
   local response = scgi.build_response(STATUS.OK, res_headers)
 
-  if headers.REQUEST_METHOD == 'HEAD' then
+  if method == 'HEAD' then
     return response
   end
 
@@ -182,26 +186,23 @@ local function serve(document_root, port)
   local files = get_files(document_root)
 
   print('Listening on port ' .. port)
-  server.listen(port, function(client)
-    local ok, headers, content = pcall(process_request, client:recv(), files)
+  server.listen(port,
+    function(client)
+      local ok, headers, content = pcall(process_request, client:recv(), files)
 
-    if not ok then
-      local error_res = scgi.build_error_response(
-        STATUS.INTERNAL_SERVER_ERROR,
-        'Server encountered an error while processing the request'
-      )
-      client:send(error_res)
-    else
+      if not ok then
+        headers, content = scgi.build_error_response(STATUS.INTERNAL_SERVER_ERROR)
+      end
+
       client:send(headers)
 
       if content then
         client:send(content)
       end
-    end
-  end)
+    end)
 end
 
-local function main()
+local function parse_args()
   local port = DEFAULT_PORT
 
   local args = getopt.parse('vhp:', function(opt, arg)
@@ -224,12 +225,18 @@ local function main()
 Try 'why -h' for more information]])
   end
 
-  local ok, err = pcall(serve, args[1], port)
-
-  if not ok then
-    throw(err)
-  end
+  return args[1], port
 end
 
-main()
+local function main()
+  local doc_root, port = parse_args()
+  serve(doc_root, port)
+end
+
+local ok, err = pcall(main)
+
+if not ok then
+  io.stderr:write(err .. "\n")
+  os.exit(1)
+end
 
