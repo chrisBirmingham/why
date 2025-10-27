@@ -3,7 +3,9 @@ local pairs = pairs
 local table = table
 local tonumber = tonumber
 
-local STATUS = {
+local scgi = {}
+
+scgi.STATUS = {
   OK = 200,
   NO_CONTENT = 204,
   NOT_MODIFIED = 304,
@@ -99,7 +101,7 @@ local function parse_headers(request)
   return headers
 end
 
-local function parse_request(request)
+function scgi.parse_request(request)
   local headers = parse_headers(request)
   validate_headers(headers)
 
@@ -110,7 +112,7 @@ local function parse_request(request)
   return headers
 end
 
-local function build_response(status, headers)
+function scgi.build_response(status, headers)
   headers = headers or {}
 
   local block = {('Status: %s'):format(STATUS_LINES[status])}
@@ -124,7 +126,7 @@ local function build_response(status, headers)
   return table.concat(block, "\r\n")
 end
 
-local function build_error_response(status)
+function scgi.build_error_response(status)
   local error_page = ERROR_PAGE:gsub('%$(%w+)', {
     status = STATUS_LINES[status],
     message = ERROR_MESSAGES[status]
@@ -138,10 +140,5 @@ local function build_error_response(status)
   return headers, error_page
 end
 
-return {
-  STATUS = STATUS,
-  parse_request = parse_request,
-  build_response = build_response,
-  build_error_response = build_error_response
-}
+return scgi
 
