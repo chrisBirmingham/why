@@ -6,16 +6,18 @@ local hash = require('hash')
 local io = io
 local ipairs = ipairs
 local mimetype = require('mimetype')
+local loadfile = loadfile
+local os = os
 local pairs = pairs
 local pcall = pcall
 local print = print
-local os = os
 local scgi = require('scgi')
 local server = require('server')
 local STATUS = scgi.STATUS
 local string = string
 local table = table
 local tonumber = tonumber
+local type = type
 
 local magic = mimetype.open()
 
@@ -31,12 +33,17 @@ local COMMON_MIMETYPES = {
   ['.js'] = 'application/javascript'
 }
 
-local USAGE = [[Usage: why [OPTION] document_root
+local USAGE = [[Usage: why [OPTIONS] [DOCUMENT_ROOT]
 A SCGI static file server
 
   -p The port to use (Default 8000)
+  -f Filename of the config file
   -v Print version and exit
-  -h Show this message and exit]]
+  -h Show this message and exit
+
+Examples:
+  why -p 8000 /var/www/html - Listen on port 8000 and use /var/www/html as the document root
+  why -f /etc/why.lua - Use this file as Why's config]]
 
 local VERSION = '1.0.0'
 local DEFAULT_PORT = 8000
@@ -185,7 +192,7 @@ local function get_files(dir)
 end
 
 local function serve(document_root, port)
-  print('Loading files')
+  print(('Loading files from %s'):format(document_root))
   local files = get_files(document_root)
   print('Files have been loaded')
 
@@ -206,10 +213,29 @@ local function serve(document_root, port)
     end)
 end
 
-local function parse_args()
-  local port = DEFAULT_PORT
+local function load_config(path)
+  local func, err = loadfile(path, 't', {})
 
-  local args = getopt.parse('vhp:', function(opt, arg)
+  if err then
+    throw(err)
+  end
+
+  local conf = func()
+  local t = type(conf)
+
+  if t ~= 'table' then
+    throw(('Invalid config file %s: Format should be a table, got %s'):format(path, t))
+  end
+
+  return conf
+end
+
+local function parse_args()
+  local doc_root = nil
+  local port = DEFAULT_PORT
+  local conf = nil
+
+  local args = getopt.parse('vhp:f:', function(opt, arg)
     if opt == 'h' then
       print(USAGE)
       os.exit()
@@ -217,19 +243,37 @@ local function parse_args()
       print(VERSION)
       os.exit()
     elseif opt == 'p' then
+      -- If we've been provided a config file, ignore this option
+      if conf then
+        return
+      end
+
       port = tonumber(arg)
       if not port or port < 0 then
         throw(('Invalid port provided (%s)'):format(arg))
       end
+    elseif opt == 'f' then
+      conf = load_config(arg)
+
+      for _, v in ipairs({'port', 'doc_root'}) do
+        if not conf[v] then
+          throw(('Invalid config file %s: Missing %s value'):format(arg, v))
+        end
+      end
+
+      port = conf.port
+      doc_root = conf.doc_root
     end
   end)
 
-  if not args[1] then
+  doc_root = doc_root or args[1]
+
+  if not doc_root then
     throw([[Missing document root argument
 Try 'why -h' for more information]])
   end
 
-  return args[1], port
+  return doc_root, port
 end
 
 local function main()
