@@ -1,5 +1,5 @@
 CC?=gcc
-SRC=src/getopt.c src/fs.c src/server.c src/hash.c src/mimetype.c
+SRC=src/why/getopt.c src/why/fs.c src/why/server.c src/why/hash.c src/why/mimetype.c
 OBJ=$(SRC:.c=.so)
 CFLAGS=-O2 -fpic -Wall -std=c11
 CLIB=$(shell pkg-config --cflags --libs lua5.4) -lev -lmagic

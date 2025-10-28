@@ -94,7 +94,7 @@ static const struct luaL_Reg fs_funcs[] = {
   {NULL, NULL}
 };
 
-int luaopen_fs(lua_State* L)
+int luaopen_why_fs(lua_State* L)
 {
   luaL_newlib(L, fs_funcs);
   return 1;

@@ -179,7 +179,7 @@ static void create_client_socket_meta(lua_State* L)
   lua_setfield(L, -2, "__index");
 }
 
-int luaopen_server(lua_State* L)
+int luaopen_why_server(lua_State* L)
 {
   create_client_socket_meta(L);
   luaL_newlib(L, server_funcs);

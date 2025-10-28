@@ -74,7 +74,7 @@ static const struct luaL_Reg getopt_funcs[] = {
   {NULL,	NULL}
 };
 
-int luaopen_getopt(lua_State* L)
+int luaopen_why_getopt(lua_State* L)
 {
   luaL_newlib(L, getopt_funcs);
   return 1;

@@ -1,9 +1,9 @@
-require('common')
-local fs = require('fs')
-local hash = require('hash')
+require('why.common')
+local fs = require('why.fs')
+local hash = require('why.hash')
 local io = io
 local ipairs = ipairs
-local mimetype = require('mimetype')
+local mimetype = require('why.mimetype')
 local pairs = pairs
 local pcall = pcall
 local table = table

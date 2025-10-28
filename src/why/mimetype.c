@@ -74,7 +74,7 @@ static void create_magic_meta(lua_State* L)
   lua_setfield(L, -2, "__index");
 }
 
-int luaopen_mimetype(lua_State* L)
+int luaopen_why_mimetype(lua_State* L)
 {
   create_magic_meta(L);
   luaL_newlib(L, magic_funcs);

@@ -1,16 +1,16 @@
 #!/usr/bin/env lua
 
-require('common')
-local filestore = require('filestore')
-local getopt = require('getopt')
+require('why.common')
+local filestore = require('why.filestore')
+local getopt = require('why.getopt')
 local ipairs = ipairs
 local loadfile = loadfile
 local os = os
 local pairs = pairs
 local pcall = pcall
 local print = print
-local scgi = require('scgi')
-local server = require('server')
+local scgi = require('why.scgi')
+local server = require('why.server')
 local STATUS = scgi.STATUS
 local table = table
 local tonumber = tonumber

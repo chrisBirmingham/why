@@ -66,7 +66,7 @@ static const struct luaL_Reg hash_funcs[] = {
   {NULL, NULL}
 };
 
-int luaopen_hash(lua_State* L)
+int luaopen_why_hash(lua_State* L)
 {
   luaL_newlib(L, hash_funcs);
   return 1;
