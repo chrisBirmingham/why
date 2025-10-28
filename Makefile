@@ -1,12 +1,13 @@
 CC?=gcc
-SRC=src/why/getopt.c src/why/fs.c src/why/server.c src/why/hash.c src/why/mimetype.c
-OBJ=$(SRC:.c=.so)
+SRC=$(shell find ./why -type f -name '*.c')
+OBJ=$(SRC:.c=.o)
+SHARED=$(SRC:.c=.so)
 CFLAGS=-O2 -fpic -Wall -std=c11
 CLIB=$(shell pkg-config --cflags --libs lua5.4) -lev -lmagic
 
 .PHONEY: all clean
 
-all: $(OBJ)
+all: $(SHARED)
 
 %.o: %.c
 	$(CC) -Wall $(CFLAGS) -c $< -o $@ $(CLIB)
@@ -16,4 +17,5 @@ all: $(OBJ)
 
 clean:
 	rm -f $(OBJ)
+	rm -f $(SHARED)
 

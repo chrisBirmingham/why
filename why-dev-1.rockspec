@@ -18,30 +18,30 @@ dependencies = {
 build = {
   type = 'builtin',
   modules = {
-    ['why.common'] = 'src/why/common.lua',
-    ['why.filestore'] = 'src/why/filestore.lua',
+    ['why.common'] = 'why/common.lua',
+    ['why.filestore'] = 'why/filestore.lua',
     ['why.fs'] = {
-      sources = 'src/why/fs.c'
+      sources = 'why/fs.c'
     },
     ['why.getopt'] = {
-      sources = 'src/why/getopt.c'
+      sources = 'why/getopt.c'
     },
     ['why.hash'] = {
-      sources = 'src/why/hash.c'
+      sources = 'why/hash.c'
     },
     ['why.mimetype'] = {
-      sources = 'src/why/mimetype.c',
+      sources = 'why/mimetype.c',
       libraries = {'magic'}
     },
-    ['why.scgi'] = 'src/why/scgi.lua',
+    ['why.scgi'] = 'why/scgi.lua',
     ['why.server'] = {
-      sources = 'src/why/server.c',
+      sources = 'why/server.c',
       libraries = {'ev'}
     }
   },
   install = {
     bin = {
-      why = 'src/why.lua'
+      why = 'why.lua'
     }
   }
 }
