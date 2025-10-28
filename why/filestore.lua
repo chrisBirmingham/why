@@ -5,7 +5,6 @@ local io = io
 local ipairs = ipairs
 local mimetype = require('why.mimetype')
 local pairs = pairs
-local pcall = pcall
 local table = table
 
 local filestore = {}

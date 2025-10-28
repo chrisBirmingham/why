@@ -17,7 +17,7 @@ function table.contains(needle, haystack)
   return false
 end
 
-function string:endswith(ending)                                               
+function string:endswith(ending)
   return self:sub(-#ending) == ending
 end
 

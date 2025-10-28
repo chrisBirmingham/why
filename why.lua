@@ -1,4 +1,4 @@
-#!/usr/bin/env lua
+#!/usr/bin/env lua5.4
 
 require('why.common')
 local filestore = require('why.filestore')
@@ -6,7 +6,6 @@ local getopt = require('why.getopt')
 local ipairs = ipairs
 local loadfile = loadfile
 local os = os
-local pairs = pairs
 local pcall = pcall
 local print = print
 local scgi = require('why.scgi')
@@ -92,19 +91,6 @@ local function process_request(request, files)
   end
 
   return response, content
-end
-
-local function get_compressed_files(path, file)
-  for algo, ext in pairs({gzip = '.gz', br = '.br'}) do
-    local compressed = path .. ext
-    if fs.exist(compressed) then
-      local content = slurp(compressed)
-      file[algo] = {
-        content = content,
-        length = #content
-      }
-    end
-  end
 end
 
 local function serve(document_root, port)

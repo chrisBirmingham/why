@@ -132,7 +132,7 @@ function scgi.build_error_response(status)
     message = ERROR_MESSAGES[status]
   })
 
-  local headers = build_response(status, {
+  local headers = scgi.build_response(status, {
     ['Content-Type'] = 'text/html',
     ['Content-Length'] = #error_page
   })
