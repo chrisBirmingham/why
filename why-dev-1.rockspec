@@ -19,6 +19,7 @@ build = {
   type = 'builtin',
   modules = {
     ['why.common'] = 'why/common.lua',
+    ['why.client'] = 'why/client.lua',
     ['why.filestore'] = 'why/filestore.lua',
     ['why.fs'] = {
       sources = 'why/fs.c'

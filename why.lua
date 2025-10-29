@@ -1,6 +1,6 @@
 #!/usr/bin/env lua5.4
 
-require('why.common')
+local client_processor = require('why.client')
 local filestore = require('why.filestore')
 local getopt = require('why.getopt')
 local ipairs = ipairs
@@ -8,10 +8,7 @@ local loadfile = loadfile
 local os = os
 local pcall = pcall
 local print = print
-local scgi = require('why.scgi')
 local server = require('why.server')
-local STATUS = scgi.STATUS
-local table = table
 local tonumber = tonumber
 local type = type
 
@@ -33,86 +30,6 @@ local DEFAULT_PORT = 8000
 local function throw(err)
   io.stderr:write(("%s: %s\n"):format(arg[0], err))
   os.exit(1)
-end
-
-local function process_request(request, files)
-  local ok, headers = pcall(scgi.parse_request, request)
-
-  if not ok then
-    return scgi.build_error_response(STATUS.BAD_REQUEST)
-  end
-
-  local method = headers.REQUEST_METHOD
-
-  if not table.contains(method, {'HEAD', 'GET', 'OPTIONS'}) then
-    return scgi.build_error_response(STATUS.METHOD_NOT_ALLOWED)
-  end
-
-  if method == 'OPTIONS' then
-    return scgi.build_response(STATUS.NO_CONTENT, {Allow = 'OPTIONS, HEAD, GET'})
-  end
-
-  local path = headers.DOCUMENT_ROOT .. headers.REQUEST_URI
-
-  if not files[path] then
-    return scgi.build_error_response(STATUS.NOT_FOUND)
-  end
-
-  local file = files[path]
-  local content = file.content
-  local etag = file.etag
-  local res_headers = {
-    ['Content-Type'] = file.mime,
-    ['Content-Length'] = file.length,
-    ETag = etag
-  }
-
-  local none_match = headers.HTTP_IF_NONE_MATCH or ''
-
-  if none_match == etag then
-    return scgi.build_response(STATUS.NOT_MODIFIED, {ETag = etag})
-  end
-
-  local accept_encoding = headers.HTTP_ACCEPT_ENCODING or {}
-
-  for _, encoding in ipairs({'br', 'gzip'}) do
-    if accept_encoding[encoding] and file[encoding] then
-      res_headers['Content-Encoding'] = encoding
-      res_headers['Content-Length'] = file[encoding].length
-      content = file[encoding].content
-      break
-    end
-  end
-
-  local response = scgi.build_response(STATUS.OK, res_headers)
-
-  if method == 'HEAD' then
-    return response
-  end
-
-  return response, content
-end
-
-local function serve(document_root, port)
-  print(('Loading files from %s'):format(document_root))
-  local files = filestore.get_files(document_root)
-  print('Files have been loaded')
-
-  print('Listening on port ' .. port)
-  server.listen(port,
-    function(client)
-      local ok, headers, content = pcall(process_request, client:recv(), files)
-
-      if not ok then
-        headers, content = scgi.build_error_response(STATUS.INTERNAL_SERVER_ERROR)
-      end
-
-      client:send(headers)
-
-      if content then
-        client:send(content)
-      end
-    end)
 end
 
 local function load_config(path)
@@ -179,8 +96,14 @@ Try 'why -h' for more information]])
 end
 
 local function main()
-  local doc_root, port = parse_args()
-  serve(doc_root, port)
+  local document_root, port = parse_args()
+
+  print(('Loading files from %s'):format(document_root))
+  filestore:scan(document_root)
+  print('Files have been loaded')
+
+  print(('Listening on port %d'):format(port))
+  server.listen(port, client_processor.handle)
 end
 
 local ok, err = pcall(main)

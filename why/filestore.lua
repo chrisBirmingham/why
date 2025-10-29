@@ -7,8 +7,6 @@ local mimetype = require('why.mimetype')
 local pairs = pairs
 local table = table
 
-local filestore = {}
-
 local magic = mimetype.open()
 
 local COMMON_MIMETYPES = {
@@ -41,7 +39,7 @@ local function get_compressed_files(path, file)
   end
 end
 
-local function add_file(path, ext)
+local function process_file(path, ext)
   local content = slurp(path)
 
   local file = {
@@ -55,33 +53,38 @@ local function add_file(path, ext)
   return file
 end
 
-function filestore.get_files(dir)
-  local files = {}
+local Filestore = {}
 
+function Filestore:new()
+  local obj = setmetatable({}, self)
+  self.__index = self
+  obj.files = {}
+  return obj
+end
+
+function Filestore:scan(dir)
   if not dir:endswith('/') then
     dir = dir .. '/'
   end
 
   for _, path in ipairs(fs.scandir(dir)) do
     if fs.is_dir(path) then
-      table.merge(files, filestore.get_files(path))
+      self:scan(path)
     else
       local basename, ext = fs.fnparts(path)
 
       if not table.contains(ext, {'.gz', '.br'}) then
-        local file = add_file(path, ext)
-        files[path] = file
+        local file = process_file(path, ext)
+        self.files[path] = file
 
         -- If we have an index file, alias the directory to it
         if basename == 'index.html' then
-          files[dir] = file
+          self.files[dir] = file
         end
       end
     end
   end
-
-  return files
 end
 
-return filestore
+return Filestore:new()
 
