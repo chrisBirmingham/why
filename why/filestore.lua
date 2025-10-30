@@ -53,20 +53,15 @@ local function process_file(path, ext)
   return file
 end
 
-local Filestore = {}
+local filestore = {
+  files = {}
+}
 
-function Filestore:new()
-  local obj = setmetatable({}, self)
-  self.__index = self
-  obj.files = {}
-  return obj
+function filestore:get(path)
+  return self.files[path] or nil
 end
 
-function Filestore:scan(dir)
-  if not dir:endswith('/') then
-    dir = dir .. '/'
-  end
-
+function filestore:scan(dir)
   for _, path in ipairs(fs.scandir(dir)) do
     if fs.is_dir(path) then
       self:scan(path)
@@ -86,5 +81,5 @@ function Filestore:scan(dir)
   end
 end
 
-return Filestore:new()
+return filestore
 

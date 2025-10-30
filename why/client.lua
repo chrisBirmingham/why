@@ -1,6 +1,7 @@
 require('why.common')
 local filestore = require('why.filestore')
 local ipairs = ipairs
+local logging = require('why.logging')
 local pcall = pcall
 local scgi = require('why.scgi')
 local STATUS = scgi.STATUS
@@ -8,28 +9,32 @@ local table = table
 
 local client = {}
 
+local ALLOW_HEADER = 'HEAD, GET, OPTIONS'
+
 local function process_request(request)
   local ok, headers = pcall(scgi.parse_request, request)
 
   if not ok then
+    logging.error('Invalid client request: ' .. headers)
     return scgi.build_error_response(STATUS.BAD_REQUEST)
   end
 
   local method = headers.REQUEST_METHOD
 
   if not table.contains(method, {'HEAD', 'GET', 'OPTIONS'}) then
-    return scgi.build_error_response(STATUS.METHOD_NOT_ALLOWED)
+    return scgi.build_error_response(STATUS.METHOD_NOT_ALLOWED, {Allow = ALLOW_HEADER})
   end
 
   if method == 'OPTIONS' then
-    return scgi.build_response(STATUS.NO_CONTENT, {Allow = 'OPTIONS, HEAD, GET'})
+    return scgi.build_response(STATUS.NO_CONTENT, {Allow = ALLOW_HEADER})
   end
 
   local path = headers.DOCUMENT_ROOT .. headers.REQUEST_URI
 
-  local file = filestore.files[path] or nil
+  local file = filestore:get(path)
 
   if not file then
+    logging.error('File not found ' .. path)
     return scgi.build_error_response(STATUS.NOT_FOUND)
   end
 
@@ -71,7 +76,6 @@ function client.handle(conn)
   local ok, headers, content = pcall(process_request, conn:recv())
 
   if not ok then
-    print(headers)
     headers, content = scgi.build_error_response(STATUS.INTERNAL_SERVER_ERROR)
   end
 

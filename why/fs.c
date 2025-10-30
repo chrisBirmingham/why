@@ -65,9 +65,11 @@ static inline int filter(const struct dirent* item)
 
 static int fs_scandir(lua_State* L)
 {
-  const char* directory = luaL_checkstring(L, 1);
+  size_t len;
+  const char* directory = luaL_checklstring(L, 1, &len);
   struct dirent** namelist;
 
+  const char* slash = (directory[len - 1] == '/')? "": "/";
   int res = scandir(directory, &namelist, filter, alphasort);
 
   if (res < 0) {
@@ -77,7 +79,7 @@ static int fs_scandir(lua_State* L)
   lua_newtable(L);
 
   for (unsigned int i = 0; i < res; i++) {
-    lua_pushfstring(L, "%s%s", directory, namelist[i]->d_name);
+    lua_pushfstring(L, "%s%s%s", directory, slash, namelist[i]->d_name);
     lua_rawseti(L, -2, i + 1);
     free(namelist[i]);
   }

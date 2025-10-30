@@ -30,6 +30,7 @@ build = {
     ['why.hash'] = {
       sources = 'why/hash.c'
     },
+    ['why.logging'] = 'why/logging.lua',
     ['why.mimetype'] = {
       sources = 'why/mimetype.c',
       libraries = {'magic'}

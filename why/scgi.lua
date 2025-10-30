@@ -57,17 +57,17 @@ local function split_header(header)
 end
 
 local function validate_headers(headers)
-	if headers.CONTENT_LENGTH == '' then
-		error('SCGI requires CONTENT_LENGTH have a value, even if "0"')
-	end
-
-	if headers.SCGI ~= '1' then
-		error('request from webserver must have "SCGI" header with value of "1"')
-	end
-
 	-- enforce base 10, we should never have CONTENT_LENGTH: 0xFF (lol)
 	if not tonumber(headers.CONTENT_LENGTH, 10) then
-		error('CONTENT_LENGTH\'s value is not a number')
+		error('CONTENT_LENGTH header value is not a number')
+	end
+
+  if not headers.SCGI then
+    error('Missing SCGI header')
+  end
+
+	if headers.SCGI ~= '1' then
+		error('SCGI header value is not 1')
 	end
 end
 
@@ -75,7 +75,7 @@ local function parse_headers(request)
   local netsize, scgistart = request:match('^(%d+):()')
 
 	if not netsize then
-		error('netstring size not found in SCGI request')
+		error('Missing starting netstring')
 	end
 
 	local head = request:sub(scgistart, scgistart + netsize)
@@ -84,14 +84,14 @@ local function parse_headers(request)
 
 	for k, v in head:gmatch('(%Z+)%z(%Z*)%z') do
 		if headers[k] then
-			error('duplicate SCGI header encountered')
+			error('Duplicate SCGI header encountered')
 		end
 
     if first_header then
       first_header = false
 
       if k ~= 'CONTENT_LENGTH' then
-        error('SCGI spec mandates CONTENT_LENGTH be the first header')
+        error('CONTENT_LENGTH was not the first header')
       end
     end
 

@@ -92,6 +92,10 @@ local function parse_args()
 Try 'why -h' for more information]])
   end
 
+  if not (doc_root:sub(-1) == '/') then
+    doc_root = doc_root .. '/'
+  end
+
   return doc_root, port
 end
 
