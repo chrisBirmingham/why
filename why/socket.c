@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <arpa/inet.h>
+#include <sys/un.h>
 #include <unistd.h>
 #include <lua.h>
 #include <lauxlib.h>
@@ -24,7 +25,7 @@ static void on_readable(struct ev_loop* loop, ev_io* w, int revents)
   lua_gettable(L, LUA_REGISTRYINDEX);
 
   /* Convert the fd into a userdata so lua can use it */
-  int* fd = (int*)lua_newuserdata(L, sizeof(int));
+  int* fd = lua_newuserdata(L, sizeof(int));
 
   /* set its metatable */
   luaL_getmetatable(L, CLIENT_SOCKET_META);
@@ -55,12 +56,12 @@ static void on_connection(struct ev_loop* loop, ev_io* w, int revents)
   ev_io_init(watcher, on_readable, fd, EV_READ);
   ev_io_start(loop, watcher);
 }
-    
-static int socket_factory(lua_State* L)
+
+static int socket_tcp_factory(lua_State* L)
 {
   int port = luaL_checkinteger(L, 1);
-
-  int fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
+  int type = luaL_optinteger(L, 2, SOCK_STREAM);
+  int fd = socket(AF_INET, type | SOCK_NONBLOCK, 0);
 
   if (fd < 0) {
     luaL_error(L, "Failed to create socket: %s", strerror(errno));
@@ -76,10 +77,35 @@ static int socket_factory(lua_State* L)
     luaL_error(L, "Failed to bind to socket: %s", strerror(errno));
   }
 
-  res = listen(fd, 10);
+  /* Convert the fd into a userdata so lua can use it */
+  int* conn = lua_newuserdata(L, sizeof(int));
+
+  /* set its metatable */
+  luaL_getmetatable(L, SOCKET_META);
+  lua_setmetatable(L, -2);
+
+  *conn = fd;
+
+  return 1;
+}
+
+static int socket_unix_factory(lua_State* L)
+{
+  const char* path = luaL_checkstring(L, 1);
+  int type = luaL_optinteger(L, 2, SOCK_STREAM);
+  int fd = socket(AF_UNIX, type | SOCK_NONBLOCK, 0);
+
+  if (fd < 0) {
+    luaL_error(L, "Failed to create socket: %s", strerror(errno));
+  }
+
+  struct sockaddr_un address;
+  address.sun_family = AF_UNIX;
+  strcpy(address.sun_path, path);
+  int res = connect(fd, (struct sockaddr*)&address, sizeof(address));
 
   if (res < 0) {
-    luaL_error(L, "Faled to listen to socket: %s", strerror(errno));
+    luaL_error(L, "Failed to bind to socket: %s", strerror(errno));
   }
 
   /* Convert the fd into a userdata so lua can use it */
@@ -92,6 +118,18 @@ static int socket_factory(lua_State* L)
   *conn = fd;
 
   return 1;
+}
+
+static int socket_listen(lua_State* L)
+{
+  int* fd = luaL_checkudata(L, 1, SOCKET_META);
+  int backlog = luaL_checkinteger(L, 2);
+
+  if (listen(*fd, backlog) < 0) {
+    luaL_error(L, "Faled to listen to socket: %s", strerror(errno));
+  }
+
+  return 0;
 }
 
 static int socket_onconnect(lua_State* L)
@@ -120,9 +158,9 @@ static int socket_close(lua_State* L)
   return 0;
 }
 
-static int client_recv(lua_State* L)
+static int socket_recv(lua_State* L)
 {
-  int* fd = luaL_checkudata(L, 1, CLIENT_SOCKET_META);
+  int* fd = lua_touserdata(L, 1);
   luaL_Buffer buf;
   luaL_buffinit(L, &buf);
   ssize_t bytes;
@@ -142,9 +180,9 @@ static int client_recv(lua_State* L)
   return 1;
 }
 
-static int client_send(lua_State* L)
+static int socket_send(lua_State* L)
 {
-  int* fd = luaL_checkudata(L, 1, CLIENT_SOCKET_META);
+  int* fd = lua_touserdata(L, 1);
   size_t len;
   const char* buffer = luaL_checklstring(L, 2, &len);
 
@@ -169,21 +207,32 @@ static int client_send(lua_State* L)
 }
 
 static const struct luaL_Reg client_socket_methods[] = {
-  {"recv", client_recv},
-  {"send", client_send},
+  {"recv", socket_recv},
+  {"send", socket_send},
   {NULL, NULL}
 };
 
 static const struct luaL_Reg socket_methods[] = {
+  {"listen", socket_listen},
   {"onconnect", socket_onconnect},
+  {"recv", socket_recv},
+  {"send", socket_send},
   {"close", socket_close},
   {NULL, NULL}
 };
 
 static const struct luaL_Reg socket_funcs[] = {
-  {"connect", socket_factory},
+  {"tcp", socket_tcp_factory},
+  {"unix", socket_unix_factory},
   {NULL, NULL}
 };
+
+static void create_const(lua_State* L, const char* key, int value)
+{
+  lua_pushstring(L, key);
+  lua_pushinteger(L, value);
+  lua_settable(L, -3);
+}
 
 static void create_class(
   lua_State* L,
@@ -201,6 +250,8 @@ int luaopen_why_socket(lua_State* L)
   create_class(L, CLIENT_SOCKET_META, client_socket_methods);
   create_class(L, SOCKET_META, socket_methods);
   luaL_newlib(L, socket_funcs);
+  create_const(L, "SOCK_STREAM", SOCK_STREAM);
+  create_const(L, "SOCK_DGRAM", SOCK_DGRAM);
   return 1;
 }
 

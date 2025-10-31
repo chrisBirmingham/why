@@ -7,6 +7,7 @@ local getopt = require('why.getopt')
 local ipairs = ipairs
 local loadfile = loadfile
 local logging = require('why.logging')
+local notify = require('why.notify')
 local os = os
 local pcall = pcall
 local print = print
@@ -103,17 +104,21 @@ end
 
 local function main()
   local document_root, port = parse_args()
+  notify.setup()
 
   logging.info(('Loading files from %s'):format(document_root))
   filestore:scan(document_root)
   logging.info('Files have been loaded')
 
-  conn = socket.connect(port)
+  conn = socket.tcp(port)
+  conn:listen(10)
   logging.info(('Listening on port %d'):format(port))
 
   loop = eventloop.new()
   conn:onconnect(loop, client_processor.handle)
+  notify.ready()
   loop:run()
+  notify.stopping()
   logging.info('Quitting')
   conn:close()
 end

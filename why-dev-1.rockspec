@@ -39,6 +39,7 @@ build = {
       sources = 'why/mimetype.c',
       libraries = {'magic'}
     },
+    ['why.notify'] = 'why/notify.lua',
     ['why.scgi'] = 'why/scgi.lua',
     ['why.socket'] = {
       sources = 'why/socket.c',
