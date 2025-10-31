@@ -16,6 +16,19 @@ static const char* FUNC_INDEX = "SERVER_FUNC";
 
 #define BUFFER_SIZE 512
 
+static int* create_socket_udata(lua_State* L, const char* meta, int fd)
+{
+  /* Convert the fd into a userdata so lua can use it */
+  int* conn = lua_newuserdata(L, sizeof(int));
+
+  /* set its metatable */
+  luaL_getmetatable(L, meta);
+  lua_setmetatable(L, -2);
+
+  *conn = fd;
+  return conn;
+}
+
 static void on_readable(struct ev_loop* loop, ev_io* w, int revents)
 {
   lua_State* L = w->data;
@@ -24,14 +37,7 @@ static void on_readable(struct ev_loop* loop, ev_io* w, int revents)
   lua_pushstring(L, FUNC_INDEX);
   lua_gettable(L, LUA_REGISTRYINDEX);
 
-  /* Convert the fd into a userdata so lua can use it */
-  int* fd = lua_newuserdata(L, sizeof(int));
-
-  /* set its metatable */
-  luaL_getmetatable(L, CLIENT_SOCKET_META);
-  lua_setmetatable(L, -2);
-
-  *fd = w->fd;
+  int* fd = create_socket_udata(L, CLIENT_SOCKET_META, w->fd);
 
   lua_call(L, 1, 0);
 
@@ -77,14 +83,7 @@ static int socket_tcp_factory(lua_State* L)
     luaL_error(L, "Failed to bind to socket: %s", strerror(errno));
   }
 
-  /* Convert the fd into a userdata so lua can use it */
-  int* conn = lua_newuserdata(L, sizeof(int));
-
-  /* set its metatable */
-  luaL_getmetatable(L, SOCKET_META);
-  lua_setmetatable(L, -2);
-
-  *conn = fd;
+  create_socket_udata(L, SOCKET_META, fd);
 
   return 1;
 }
@@ -108,14 +107,7 @@ static int socket_unix_factory(lua_State* L)
     luaL_error(L, "Failed to bind to socket: %s", strerror(errno));
   }
 
-  /* Convert the fd into a userdata so lua can use it */
-  int* conn = lua_newuserdata(L, sizeof(int));
-
-  /* set its metatable */
-  luaL_getmetatable(L, SOCKET_META);
-  lua_setmetatable(L, -2);
-
-  *conn = fd;
+  create_socket_udata(L, SOCKET_META, fd);
 
   return 1;
 }
