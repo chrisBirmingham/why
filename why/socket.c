@@ -8,16 +8,12 @@
 #include <lauxlib.h>
 #include <lualib.h>
 
+static const char* SOCKET_META = "lua_socket";
 static const char* CLIENT_SOCKET_META = "lua_client_socket";
+static const char* EVENT_LOOP_META = "lua_event_loop";
 static const char* FUNC_INDEX = "SERVER_FUNC";
 
 #define BUFFER_SIZE 512
-
-static void on_sigint(struct ev_loop* loop, ev_signal* w, int revents)
-{
-  /* Try to break out of the loop cleanly */
-  ev_break(loop, EVBREAK_ALL);
-}
 
 static void on_readable(struct ev_loop* loop, ev_io* w, int revents)
 {
@@ -63,12 +59,6 @@ static void on_connection(struct ev_loop* loop, ev_io* w, int revents)
 static int socket_factory(lua_State* L)
 {
   int port = luaL_checkinteger(L, 1);
-  luaL_checktype(L, 2, LUA_TFUNCTION);
-
-  /* Store the callback in the global registry */
-  lua_pushstring(L, FUNC_INDEX);
-  lua_pushvalue(L, 2);
-  lua_settable(L, LUA_REGISTRYINDEX);
 
   int fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
 
@@ -92,29 +82,47 @@ static int socket_factory(lua_State* L)
     luaL_error(L, "Faled to listen to socket: %s", strerror(errno));
   }
 
-  struct ev_loop* loop = EV_DEFAULT;
+  /* Convert the fd into a userdata so lua can use it */
+  int* conn = lua_newuserdata(L, sizeof(int));
+
+  /* set its metatable */
+  luaL_getmetatable(L, SOCKET_META);
+  lua_setmetatable(L, -2);
+
+  *conn = fd;
+
+  return 1;
+}
+
+static int socket_onconnect(lua_State* L)
+{
+  int* fd = luaL_checkudata(L, 1, SOCKET_META);
+  struct ev_loop** loop = luaL_checkudata(L, 2, EVENT_LOOP_META);
+  luaL_checktype(L, 3, LUA_TFUNCTION);
+
+  /* Store the callback in the global registry */
+  lua_pushstring(L, FUNC_INDEX);
+  lua_pushvalue(L, 3);
+  lua_settable(L, LUA_REGISTRYINDEX);
  
   /* Set up server watcher */
   ev_io* w = malloc(sizeof(ev_io));
   w->data = L;
-  ev_io_init(w, on_connection, fd, EV_READ);
-  ev_io_start(loop, w);
+  ev_io_init(w, on_connection, *fd, EV_READ);
+  ev_io_start(*loop, w);
+  return 0;
+}
 
-  /* Set up sigint watcher */
-  ev_signal signal_watcher;
-  ev_signal_init(&signal_watcher, on_sigint, SIGINT);
-  ev_signal_start(loop, &signal_watcher);
-
-  ev_run(loop, 0);
-
-  close(fd);
-
+static int socket_close(lua_State* L)
+{
+  int* fd = luaL_checkudata(L, 1, SOCKET_META);
+  close(*fd);
   return 0;
 }
 
 static int client_recv(lua_State* L)
 {
-  int* fd = (int*)luaL_checkudata(L, 1, CLIENT_SOCKET_META);
+  int* fd = luaL_checkudata(L, 1, CLIENT_SOCKET_META);
   luaL_Buffer buf;
   luaL_buffinit(L, &buf);
   ssize_t bytes;
@@ -136,7 +144,7 @@ static int client_recv(lua_State* L)
 
 static int client_send(lua_State* L)
 {
-  int* fd = (int*)luaL_checkudata(L, 1, CLIENT_SOCKET_META);
+  int* fd = luaL_checkudata(L, 1, CLIENT_SOCKET_META);
   size_t len;
   const char* buffer = luaL_checklstring(L, 2, &len);
 
@@ -166,23 +174,33 @@ static const struct luaL_Reg client_socket_methods[] = {
   {NULL, NULL}
 };
 
-static const struct luaL_Reg server_funcs[] = {
-  {"listen", socket_factory},
+static const struct luaL_Reg socket_methods[] = {
+  {"onconnect", socket_onconnect},
+  {"close", socket_close},
   {NULL, NULL}
 };
 
-static void create_client_socket_meta(lua_State* L)
-{
-  luaL_newmetatable(L, CLIENT_SOCKET_META);
-  luaL_setfuncs(L, client_socket_methods, 0);
+static const struct luaL_Reg socket_funcs[] = {
+  {"connect", socket_factory},
+  {NULL, NULL}
+};
+
+static void create_class(
+  lua_State* L,
+  const char* meta,
+  const struct luaL_Reg* methods
+) {
+  luaL_newmetatable(L, meta);
+  luaL_setfuncs(L, methods, 0);
   lua_pushvalue(L, -1);
   lua_setfield(L, -2, "__index");
 }
 
-int luaopen_why_server(lua_State* L)
+int luaopen_why_socket(lua_State* L)
 {
-  create_client_socket_meta(L);
-  luaL_newlib(L, server_funcs);
+  create_class(L, CLIENT_SOCKET_META, client_socket_methods);
+  create_class(L, SOCKET_META, socket_methods);
+  luaL_newlib(L, socket_funcs);
   return 1;
 }
 

@@ -1,14 +1,16 @@
 #!/usr/bin/env lua5.4
 
 local client_processor = require('why.client')
+local eventloop = require('why.eventloop')
 local filestore = require('why.filestore')
 local getopt = require('why.getopt')
 local ipairs = ipairs
 local loadfile = loadfile
+local logging = require('why.logging')
 local os = os
 local pcall = pcall
 local print = print
-local server = require('why.server')
+local socket = require('why.socket')
 local tonumber = tonumber
 local type = type
 
@@ -102,12 +104,18 @@ end
 local function main()
   local document_root, port = parse_args()
 
-  print(('Loading files from %s'):format(document_root))
+  logging.info(('Loading files from %s'):format(document_root))
   filestore:scan(document_root)
-  print('Files have been loaded')
+  logging.info('Files have been loaded')
 
-  print(('Listening on port %d'):format(port))
-  server.listen(port, client_processor.handle)
+  conn = socket.connect(port)
+  logging.info(('Listening on port %d'):format(port))
+
+  loop = eventloop.new()
+  conn:onconnect(loop, client_processor.handle)
+  loop:run()
+  logging.info('Quitting')
+  conn:close()
 end
 
 local ok, err = pcall(main)

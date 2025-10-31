@@ -3,9 +3,17 @@ local os = os
 
 local logging = {}
 
-function logging.error(msg)
+local function log(msg, fp)
   local date = os.date('%Y-%m-%d %H:%M:%S')
-  io.stderr:write(('[%s] %s\n'):format(date, msg))
+  fp:write(('[%s] %s\n'):format(date, msg))
+end
+
+function logging.info(msg)
+  log(msg, io.stdout)
+end
+
+function logging.error(msg)
+  log(msg, io.stderr)
 end
 
 return logging

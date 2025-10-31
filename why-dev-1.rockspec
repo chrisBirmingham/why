@@ -20,6 +20,10 @@ build = {
   modules = {
     ['why.common'] = 'why/common.lua',
     ['why.client'] = 'why/client.lua',
+    ['why.eventloop'] = {
+      sources = 'why/eventloop.c',
+      libraries = {'ev'}
+    },
     ['why.filestore'] = 'why/filestore.lua',
     ['why.fs'] = {
       sources = 'why/fs.c'
@@ -36,8 +40,8 @@ build = {
       libraries = {'magic'}
     },
     ['why.scgi'] = 'why/scgi.lua',
-    ['why.server'] = {
-      sources = 'why/server.c',
+    ['why.socket'] = {
+      sources = 'why/socket.c',
       libraries = {'ev'}
     }
   },
