@@ -111,23 +111,41 @@ end
 
 local function load_files()
   logging.info('Loading files')
+  filestore:clear()
   filestore:scan()
   logging.info('Files have been loaded')
 end
 
-local function run_server(port)
+local function create_eventloop()
   local loop = eventloop:new()
 
-  loop:signal(eventloop.SIGINT, function()
+  local function kill()
     logging.info('Quitting')
     loop:stop()
+  end
+
+  -- Sigint is via terminal
+  loop:signal(eventloop.SIGINT, kill)
+  -- Sigterm is via service
+  loop:signal(eventloop.SIGTERM, kill)
+
+  loop:signal(eventloop.SIGHUP, function()
+    logging.info('Recieved SIGHUP')
+    notify.send(notify.RELOADING)
+    load_files()
+    notify.send(notify.READY, 'Successfully reloaded')
   end)
 
+  return loop
+end
+
+local function run_server(port)
+  local loop = create_eventloop()
   local conn = create_server(loop, port)
-  logging.info('Listening on port ' .. port)
 
   -- Tell service manager we're ready
-  notify.ready()
+  notify.send(notify.READY, 'Initialised successfully')
+  logging.info('Listening on port ' .. port)
   loop:run()
   conn:close()
 end
@@ -141,7 +159,7 @@ local function main()
   load_files()
 
   run_server(port)
-  notify.stopping()
+  notify.send(notify.STOPPING, 'Cleaned up successfully')
 end
 
 local ok, err = pcall(main)

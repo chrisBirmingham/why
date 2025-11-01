@@ -66,6 +66,7 @@ static const struct luaL_Reg eventloop_funcs[] = {
 };
 
 static const struct luaL_Const eventloop_constants[] = {
+  {"SIGTERM", SIGTERM},
   {"SIGINT", SIGINT},
   {"SIGHUP", SIGHUP},
   {NULL, 0}
