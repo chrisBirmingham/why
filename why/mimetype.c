@@ -16,14 +16,8 @@ static int magic_factory(lua_State* L)
     luaL_error(L, "Failed to open magic database: %s", magic_error(cookie));
   }
 
-  magic_t* c = (magic_t*)lua_newuserdata(L, sizeof(magic_t*));
-
-  /* set its metatable */
-  luaL_getmetatable(L, MAGIC_META);
-  lua_setmetatable(L, -2);
-
+  magic_t* c = create_instance(L, MAGIC_META, sizeof(magic_t*));
   *c = cookie;
-
   return 1;
 }
     

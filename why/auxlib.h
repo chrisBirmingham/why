@@ -21,6 +21,17 @@ inline void create_constants(lua_State* L, const struct luaL_Const* consts)
   }
 }
 
+inline void* create_instance(
+  lua_State* L,
+  const char* meta,
+  size_t size
+) {
+  void* instance = lua_newuserdata(L, size);
+  luaL_getmetatable(L, meta);
+  lua_setmetatable(L, -2);
+  return instance;
+}
+
 inline void create_class(
   lua_State* L,
   const char* meta,

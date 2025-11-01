@@ -16,14 +16,8 @@ static void on_signal(struct ev_loop*, ev_signal* w, int revents)
 
 static int eventloop_factory(lua_State* L)
 {
-  struct ev_loop** loop = lua_newuserdata(L, sizeof(struct ev_loop*));
-
-  /* set its metatable */
-  luaL_getmetatable(L, EVENT_LOOP_META);
-  lua_setmetatable(L, -2);
-
+  struct ev_loop** loop = create_instance(L, EVENT_LOOP_META, sizeof(struct ev_loop*));
   *loop = EV_DEFAULT;
-
   return 1;
 }
 

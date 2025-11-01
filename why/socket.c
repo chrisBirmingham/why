@@ -17,15 +17,10 @@ static const int BIND = 1;
 
 #define BUFFER_SIZE 512
 
-static int* create_socket_udata(lua_State* L, const char* meta, int fd)
+static inline int* create_socket_udata(lua_State* L, const char* meta, int fd)
 {
   /* Convert the fd into a userdata so lua can use it */
-  int* conn = lua_newuserdata(L, sizeof(int));
-
-  /* set its metatable */
-  luaL_getmetatable(L, meta);
-  lua_setmetatable(L, -2);
-
+  int* conn = create_instance(L, meta, sizeof(fd));
   *conn = fd;
   return conn;
 }
