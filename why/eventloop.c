@@ -71,11 +71,17 @@ static const struct luaL_Reg eventloop_funcs[] = {
   {NULL, NULL}
 };
 
+static const struct luaL_Const eventloop_constants[] = {
+  {"SIGINT", SIGINT},
+  {"SIGHUP", SIGHUP},
+  {NULL, 0}
+};
+
 int luaopen_why_eventloop(lua_State* L)
 {
   create_class(L, EVENT_LOOP_META, eventloop_methods);
   luaL_newlib(L, eventloop_funcs);
-  create_const(L, "SIGINT", SIGINT);
+  create_constants(L, eventloop_constants);
   return 1;
 }
 

@@ -1,7 +1,5 @@
-#include <lua.h>
-#include <lauxlib.h>
-#include <lualib.h>
 #include <magic.h>
+#include "auxlib.h"
 
 static const char* MAGIC_META = "lua_magic";
 
@@ -66,17 +64,9 @@ static const struct luaL_Reg magic_funcs[] = {
   {NULL, NULL}
 };
 
-static void create_magic_meta(lua_State* L)
-{
-  luaL_newmetatable(L, MAGIC_META);
-  luaL_setfuncs(L, magic_methods, 0);
-  lua_pushvalue(L, -1);
-  lua_setfield(L, -2, "__index");
-}
-
 int luaopen_why_mimetype(lua_State* L)
 {
-  create_magic_meta(L);
+  create_class(L, MAGIC_META, magic_methods);
   luaL_newlib(L, magic_funcs);
   return 1;
 }

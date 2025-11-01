@@ -235,15 +235,20 @@ static const struct luaL_Reg socket_funcs[] = {
   {NULL, NULL}
 };
 
+static const struct luaL_Const socket_constants[] = {
+  {"SOCK_STREAM", SOCK_STREAM},
+  {"SOCK_DGRAM", SOCK_DGRAM},
+  {"CONNECT", CONNECT},
+  {"BIND", BIND},
+  {NULL, 0}
+};
+
 int luaopen_why_socket(lua_State* L)
 {
   create_class(L, CLIENT_SOCKET_META, client_socket_methods);
   create_class(L, SOCKET_META, socket_methods);
   luaL_newlib(L, socket_funcs);
-  create_const(L, "SOCK_STREAM", SOCK_STREAM);
-  create_const(L, "SOCK_DGRAM", SOCK_DGRAM);
-  create_const(L, "CONNECT", CONNECT);
-  create_const(L, "BIND", BIND);
+  create_constants(L, socket_constants);
   return 1;
 }
 

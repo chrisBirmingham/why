@@ -2,11 +2,23 @@
 #include <lauxlib.h>
 #include <lualib.h>
 
-inline void create_const(lua_State* L, const char* key, int value)
+struct luaL_Const {
+  const char* name;
+  int value;
+};
+
+inline void create_constant(lua_State* L, const char* key, int value)
 {
   lua_pushstring(L, key);
   lua_pushinteger(L, value);
   lua_settable(L, -3);
+}
+
+inline void create_constants(lua_State* L, const struct luaL_Const* consts)
+{
+  for (; consts->name != NULL; consts++) {
+    create_constant(L, consts->name, consts->value);
+  }
 }
 
 inline void create_class(
