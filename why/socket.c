@@ -5,14 +5,15 @@
 #include <arpa/inet.h>
 #include <sys/un.h>
 #include <unistd.h>
-#include <lua.h>
-#include <lauxlib.h>
-#include <lualib.h>
+#include "auxlib.h"
 
 static const char* SOCKET_META = "lua_socket";
 static const char* CLIENT_SOCKET_META = "lua_client_socket";
 static const char* EVENT_LOOP_META = "lua_event_loop";
 static const char* FUNC_INDEX = "SERVER_FUNC";
+
+static const int CONNECT = 0;
+static const int BIND = 1;
 
 #define BUFFER_SIZE 512
 
@@ -63,21 +64,33 @@ static void on_connection(struct ev_loop* loop, ev_io* w, int revents)
   ev_io_start(loop, watcher);
 }
 
+static int socket_connect(int fd, int conn_type, struct sockaddr* addr, socklen_t len)
+{
+  if (conn_type) {
+    return bind(fd, addr, len);
+  }
+
+  return connect(fd, addr, len);
+}
+
 static int socket_tcp_factory(lua_State* L)
 {
   int port = luaL_checkinteger(L, 1);
   int type = luaL_optinteger(L, 2, SOCK_STREAM);
+  int conn_type = luaL_optinteger(L, 3, BIND);
+
   int fd = socket(AF_INET, type | SOCK_NONBLOCK, 0);
 
   if (fd < 0) {
     luaL_error(L, "Failed to create socket: %s", strerror(errno));
   }
 
-  struct sockaddr_in address;
-  address.sin_family = AF_INET;
-  address.sin_addr.s_addr = INADDR_ANY;
-  address.sin_port = htons(port);
-  int res = bind(fd, (struct sockaddr*)&address, sizeof(address));
+  struct sockaddr_in addr;
+  addr.sin_family = AF_INET;
+  addr.sin_addr.s_addr = INADDR_ANY;
+  addr.sin_port = htons(port);
+
+  int res = socket_connect(fd, conn_type, (struct sockaddr*)&addr, sizeof(addr));
 
   if (res < 0) {
     luaL_error(L, "Failed to bind to socket: %s", strerror(errno));
@@ -92,16 +105,19 @@ static int socket_unix_factory(lua_State* L)
 {
   const char* path = luaL_checkstring(L, 1);
   int type = luaL_optinteger(L, 2, SOCK_STREAM);
+  int conn_type = luaL_optinteger(L, 3, BIND);
+
   int fd = socket(AF_UNIX, type | SOCK_NONBLOCK, 0);
 
   if (fd < 0) {
     luaL_error(L, "Failed to create socket: %s", strerror(errno));
   }
 
-  struct sockaddr_un address;
-  address.sun_family = AF_UNIX;
-  strcpy(address.sun_path, path);
-  int res = connect(fd, (struct sockaddr*)&address, sizeof(address));
+  struct sockaddr_un addr;
+  addr.sun_family = AF_UNIX;
+  strcpy(addr.sun_path, path);
+
+  int res = socket_connect(fd, conn_type, (struct sockaddr*)&addr, sizeof(addr));
 
   if (res < 0) {
     luaL_error(L, "Failed to bind to socket: %s", strerror(errno));
@@ -219,24 +235,6 @@ static const struct luaL_Reg socket_funcs[] = {
   {NULL, NULL}
 };
 
-static void create_const(lua_State* L, const char* key, int value)
-{
-  lua_pushstring(L, key);
-  lua_pushinteger(L, value);
-  lua_settable(L, -3);
-}
-
-static void create_class(
-  lua_State* L,
-  const char* meta,
-  const struct luaL_Reg* methods
-) {
-  luaL_newmetatable(L, meta);
-  luaL_setfuncs(L, methods, 0);
-  lua_pushvalue(L, -1);
-  lua_setfield(L, -2, "__index");
-}
-
 int luaopen_why_socket(lua_State* L)
 {
   create_class(L, CLIENT_SOCKET_META, client_socket_methods);
@@ -244,6 +242,8 @@ int luaopen_why_socket(lua_State* L)
   luaL_newlib(L, socket_funcs);
   create_const(L, "SOCK_STREAM", SOCK_STREAM);
   create_const(L, "SOCK_DGRAM", SOCK_DGRAM);
+  create_const(L, "CONNECT", CONNECT);
+  create_const(L, "BIND", BIND);
   return 1;
 }
 

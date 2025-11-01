@@ -1,16 +1,17 @@
 #include <ev.h>
 #include <stdlib.h>
-#include <lua.h>
-#include <lauxlib.h>
-#include <lualib.h>
+#include "auxlib.h"
 
 static const char* EVENT_LOOP_META = "lua_event_loop";
 
-static void on_sigint(struct ev_loop* loop, ev_signal* w, int revents)
+static void on_signal(struct ev_loop*, ev_signal* w, int revents)
 {
-  /* Try to break out of the loop cleanly */
-  ev_break(loop, EVBREAK_ALL);
-  free(w);
+  lua_State* L = w->data;
+
+  lua_pushinteger(L, w->signum);
+  lua_gettable(L, LUA_REGISTRYINDEX);
+
+  lua_call(L, 0, 0);
 }
 
 static int eventloop_factory(lua_State* L)
@@ -23,12 +24,25 @@ static int eventloop_factory(lua_State* L)
 
   *loop = EV_DEFAULT;
 
-  /* Set up sigint watcher */
+  return 1;
+}
+
+static int eventloop_signal(lua_State* L)
+{
+  struct ev_loop** loop = luaL_checkudata(L, 1, EVENT_LOOP_META);
+  int signal = luaL_checkinteger(L, 2);
+  luaL_checktype(L, 3, LUA_TFUNCTION);
+
+  lua_pushinteger(L, signal);
+  lua_pushvalue(L, 3);
+  lua_settable(L, LUA_REGISTRYINDEX);
+
   ev_signal* signal_watcher = malloc(sizeof(ev_signal));
-  ev_signal_init(signal_watcher, on_sigint, SIGINT);
+  signal_watcher->data = L;
+  ev_signal_init(signal_watcher, on_signal, signal);
   ev_signal_start(*loop, signal_watcher);
 
-  return 1;
+  return 0;
 }
 
 static int eventloop_run(lua_State* L)
@@ -38,8 +52,17 @@ static int eventloop_run(lua_State* L)
   return 0;
 }
 
+static int eventloop_stop(lua_State* L)
+{
+  struct ev_loop** loop = luaL_checkudata(L, 1, EVENT_LOOP_META);
+  ev_break(*loop, EVBREAK_ALL);
+  return 0;
+}
+
 static const struct luaL_Reg eventloop_methods[] = {
   {"run", eventloop_run},
+  {"signal", eventloop_signal},
+  {"stop", eventloop_stop},
   {NULL, NULL}
 };
 
@@ -48,21 +71,11 @@ static const struct luaL_Reg eventloop_funcs[] = {
   {NULL, NULL}
 };
 
-static void create_class(
-  lua_State* L,
-  const char* meta,
-  const struct luaL_Reg* methods
-) {
-  luaL_newmetatable(L, meta);
-  luaL_setfuncs(L, methods, 0);
-  lua_pushvalue(L, -1);
-  lua_setfield(L, -2, "__index");
-}
-
 int luaopen_why_eventloop(lua_State* L)
 {
   create_class(L, EVENT_LOOP_META, eventloop_methods);
   luaL_newlib(L, eventloop_funcs);
+  create_const(L, "SIGINT", SIGINT);
   return 1;
 }
 

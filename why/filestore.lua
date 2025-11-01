@@ -54,14 +54,21 @@ local function process_file(path, ext)
 end
 
 local filestore = {
-  files = {}
+  files = {},
+  document_root = ''
 }
+
+function filestore:clear()
+  self.files = {}
+end
 
 function filestore:get(path)
   return self.files[path] or nil
 end
 
 function filestore:scan(dir)
+  dir = dir or self.document_root
+
   for _, path in ipairs(fs.scandir(dir)) do
     if fs.is_dir(path) then
       self:scan(path)

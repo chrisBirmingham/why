@@ -95,32 +95,53 @@ local function parse_args()
 Try 'why -h' for more information]])
   end
 
-  if not (doc_root:sub(-1) == '/') then
+  if doc_root:sub(-1) ~= '/' then
     doc_root = doc_root .. '/'
   end
 
   return doc_root, port
 end
 
+local function create_server(loop, port)
+  local conn = socket.tcp(port)
+  conn:listen(10)
+  conn:onconnect(loop, client_processor.handle)
+  return conn
+end
+
+local function load_files()
+  logging.info('Loading files')
+  filestore:scan()
+  logging.info('Files have been loaded')
+end
+
+local function run_server(port)
+  local loop = eventloop:new()
+
+  loop:signal(eventloop.SIGINT, function()
+    logging.info('Quitting')
+    loop:stop()
+  end)
+
+  local conn = create_server(loop, port)
+  logging.info('Listening on port ' .. port)
+
+  -- Tell service manager we're ready
+  notify.ready()
+  loop:run()
+  conn:close()
+end
+
 local function main()
   local document_root, port = parse_args()
   notify.setup()
 
-  logging.info(('Loading files from %s'):format(document_root))
-  filestore:scan(document_root)
-  logging.info('Files have been loaded')
+  logging.info('Document root is ' .. document_root)
+  filestore.document_root = document_root
+  load_files()
 
-  conn = socket.tcp(port)
-  conn:listen(10)
-  logging.info(('Listening on port %d'):format(port))
-
-  loop = eventloop.new()
-  conn:onconnect(loop, client_processor.handle)
-  notify.ready()
-  loop:run()
+  run_server(port)
   notify.stopping()
-  logging.info('Quitting')
-  conn:close()
 end
 
 local ok, err = pcall(main)
