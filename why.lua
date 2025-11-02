@@ -1,165 +1,116 @@
 #!/usr/bin/env lua5.4
 
 local client_processor = require('why.client')
-local eventloop = require('why.eventloop')
+local config = require('why.config')
+local event = require('why.event')
 local filestore = require('why.filestore')
 local getopt = require('why.getopt')
-local ipairs = ipairs
-local loadfile = loadfile
 local logging = require('why.logging')
 local notify = require('why.notify')
 local os = os
 local pcall = pcall
 local print = print
 local socket = require('why.socket')
-local tonumber = tonumber
-local type = type
 
-local USAGE = [[Usage: why [OPTIONS] [DOCUMENT_ROOT]
+local USAGE = [[Usage: why [OPTIONS] [CONFIG_FILE]
 A SCGI static file server
 
-  -p The port to use (Default 8000)
-  -f Filename of the config file
+  -f Filename of the config file (Default /etc/why/conf.lua)
+  -t Test the config file and exit
   -v Print version and exit
   -h Show this message and exit
 
 Examples:
-  why -p 8000 /var/www/html - Listen on port 8000 and use /var/www/html as the document root
-  why -f /etc/why.lua - Use this file as Why's config]]
+  why -f /etc/why/conf.lua - Use this file as Why's config
+  why -t -f /etc/why/conf.lua - Test the provided config file]]
 
 local VERSION = '1.0.0'
-local DEFAULT_PORT = 8000
+local config_file = '/etc/why/conf.lua'
 
-local function throw(err)
-  io.stderr:write(("%s: %s\n"):format(arg[0], err))
-  os.exit(1)
+local function create_server(port)
+  local conn = socket.tcp(port)
+  conn:listen(10)
+  return conn
 end
 
-local function load_config(path)
-  local func, err = loadfile(path, 't', {})
+local function load_files(document_root)
+  logging.info('Document root is ' .. document_root)
+  filestore.document_root = document_root
+  filestore:clear()
+  filestore:scan()
+end
 
-  if err then
-    throw(err)
+local function run_server(conf)
+  logging.info('Loading files')
+  load_files(conf.document_root)
+  logging.info('Files have been loaded')
+
+  local conn = create_server(conf.port)
+  local loop = event:new_eventloop()
+
+  conn:onconnect(loop, client_processor.handle)
+
+  local function kill()
+    notify.send(notify.STOPPING, 'Service stopping')
+    logging.info('Quitting')
+    loop:stop()
+    conn:close()
+    os.exit()
   end
 
-  local conf = func()
-  local t = type(conf)
+  -- Sigint is via terminal
+  loop:signal(event.SIGINT, kill)
+  -- Sigterm is via service
+  loop:signal(event.SIGTERM, kill)
 
-  if t ~= 'table' then
-    throw(('Invalid config file %s: Format should be a table, got %s'):format(path, t))
-  end
+  loop:signal(event.SIGHUP, function()
+    logging.info('Reloading service')
+    notify.send(notify.RELOADING)
+    loop:stop()
+    conn:close()
+  end)
 
-  return conf
+  notify.send(notify.READY, 'Service started/reloaded successfully')
+  logging.info('Listening on port ' .. conf.port)
+  loop:run()
 end
 
 local function parse_args()
-  local doc_root = nil
-  local port = DEFAULT_PORT
-  local conf = nil
+  local validate_config = false
 
-  local args = getopt.parse('vhp:f:', function(opt, arg)
+  getopt.parse('vhf:t', function(opt, arg)
     if opt == 'h' then
       print(USAGE)
       os.exit()
     elseif opt == 'v' then
       print(VERSION)
       os.exit()
-    elseif opt == 'p' then
-      -- If we've been provided a config file, ignore this option
-      if conf then
-        return
-      end
-
-      port = tonumber(arg)
-      if not port or port < 0 then
-        throw(('Invalid port provided (%s)'):format(arg))
-      end
     elseif opt == 'f' then
-      conf = load_config(arg)
-
-      for _, v in ipairs({'port', 'doc_root'}) do
-        if not conf[v] then
-          throw(('Invalid config file %s: Missing %s value'):format(arg, v))
-        end
-      end
-
-      port = conf.port
-      doc_root = conf.doc_root
+      config_file = arg
+    elseif opt == 't' then
+      validate_config = true
     end
   end)
 
-  doc_root = doc_root or args[1]
-
-  if not doc_root then
-    throw([[Missing document root argument
-Try 'why -h' for more information]])
-  end
-
-  if doc_root:sub(-1) ~= '/' then
-    doc_root = doc_root .. '/'
-  end
-
-  return doc_root, port
-end
-
-local function create_server(loop, port)
-  local conn = socket.tcp(port)
-  conn:listen(10)
-  conn:onconnect(loop, client_processor.handle)
-  return conn
-end
-
-local function load_files()
-  logging.info('Loading files')
-  filestore:clear()
-  filestore:scan()
-  logging.info('Files have been loaded')
-end
-
-local function create_eventloop()
-  local loop = eventloop:new()
-
-  local function kill()
-    logging.info('Quitting')
-    loop:stop()
-  end
-
-  -- Sigint is via terminal
-  loop:signal(eventloop.SIGINT, kill)
-  -- Sigterm is via service
-  loop:signal(eventloop.SIGTERM, kill)
-
-  loop:signal(eventloop.SIGHUP, function()
-    logging.info('Recieved SIGHUP')
-    notify.send(notify.RELOADING)
-    load_files()
-    notify.send(notify.READY, 'Successfully reloaded')
-  end)
-
-  return loop
-end
-
-local function run_server(port)
-  local loop = create_eventloop()
-  local conn = create_server(loop, port)
-
-  -- Tell service manager we're ready
-  notify.send(notify.READY, 'Initialised successfully')
-  logging.info('Listening on port ' .. port)
-  loop:run()
-  conn:close()
+  return validate_config
 end
 
 local function main()
-  local document_root, port = parse_args()
+  local validate_config = parse_args()
   notify.setup()
 
-  logging.info('Document root is ' .. document_root)
-  filestore.document_root = document_root
-  load_files()
+  -- Continually loop. If we get a sighup, we'll load the configs again and
+  -- restart the server
+  while true do
+    local conf = config.load(config_file)
 
-  run_server(port)
-  notify.send(notify.STOPPING, 'Cleaned up successfully')
+    if validate_config then
+      logging.info(('Config file %s is valid'):format(config_file))
+      return
+    end
+
+    run_server(conf)
+  end
 end
 
 local ok, err = pcall(main)

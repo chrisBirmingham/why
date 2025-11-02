@@ -18,10 +18,11 @@ dependencies = {
 build = {
   type = 'builtin',
   modules = {
+    ['why.config'] = 'why/config.lua',
     ['why.common'] = 'why/common.lua',
     ['why.client'] = 'why/client.lua',
-    ['why.eventloop'] = {
-      sources = 'why/eventloop.c',
+    ['why.event'] = {
+      sources = 'why/event.c',
       libraries = {'ev'}
     },
     ['why.filestore'] = 'why/filestore.lua',

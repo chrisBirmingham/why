@@ -61,7 +61,7 @@ static const struct luaL_Reg eventloop_methods[] = {
 };
 
 static const struct luaL_Reg eventloop_funcs[] = {
-  {"new", eventloop_factory},
+  {"new_eventloop", eventloop_factory},
   {NULL, NULL}
 };
 
@@ -72,7 +72,7 @@ static const struct luaL_Const eventloop_constants[] = {
   {NULL, 0}
 };
 
-int luaopen_why_eventloop(lua_State* L)
+int luaopen_why_event(lua_State* L)
 {
   create_class(L, EVENT_LOOP_META, eventloop_methods);
   luaL_newlib(L, eventloop_funcs);
