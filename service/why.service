@@ -3,10 +3,13 @@ Description=An in memory static file SCGI webserver
 
 [Service] 
 ExecStart=/usr/local/bin/why -f /etc/why/conf.lua
+ExecStartPre=/usr/local/bin/why -t -f /etc/why/conf.lua
 ExecReload=/bin/kill -HUP $MAINPID
 Type=notify-reload
 StandardOutput=append:/var/log/why.log
 StandardError=append:/var/log/why-error.log
+User=www-data
+Group=www-data
 
 [Install]
 WantedBy=multi-user.target

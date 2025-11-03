@@ -70,6 +70,10 @@ static int socket_unix_factory(lua_State* L)
     luaL_error(L, "Failed to create socket: %s", strerror(errno));
   }
 
+  if (conn_type == BIND && (unlink(path) < 0 && errno != ENOENT)) {
+    luaL_error(L, "Failed to create socket: %s", strerror(errno));
+  }
+
   struct sockaddr_un addr;
   addr.sun_family = AF_UNIX;
   strcpy(addr.sun_path, path);
@@ -100,9 +104,7 @@ static int socket_listen(lua_State* L)
 static int socket_accept(lua_State* L)
 {
   int* sock = luaL_checkudata(L, 1, SOCKET_META);
-  struct sockaddr_in address;
-  socklen_t addrlen = sizeof(address);
-  int fd = accept(*sock, (struct sockaddr *)&address, &addrlen);
+  int fd = accept(*sock, NULL, NULL);
   lua_pushinteger(L, fd);
   return 1;
 }

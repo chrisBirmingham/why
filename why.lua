@@ -11,6 +11,7 @@ local os = os
 local pcall = pcall
 local print = print
 local socket = require('why.socket')
+local type = type
 
 local USAGE = [[Usage: why [OPTIONS] [CONFIG_FILE]
 A SCGI static file server
@@ -27,8 +28,9 @@ Examples:
 local VERSION = '1.0.0'
 local DEFAULT_CONFIG_FILE = '/etc/why/conf.lua'
 
-local function create_server(port)
-  local conn = socket.tcp(port)
+local function create_server(link)
+  local factory = type(link) == 'number' and socket.tcp or socket.unix
+  local conn = factory(link)
   conn:listen(10)
   return conn
 end
@@ -41,13 +43,14 @@ local function load_files(document_root)
 end
 
 local function run_server(conf)
+  local link = conf.port or conf.socket
   local keep_running = true
 
   logging.info('Loading files')
   load_files(conf.document_root)
   logging.info('Files have been loaded')
 
-  local conn = create_server(conf.port)
+  local conn = create_server(link)
   local loop = event:new_eventloop()
 
   loop:io(conn:fd(), function()
@@ -77,7 +80,7 @@ local function run_server(conf)
   end)
 
   notify.send(notify.READY, 'Service started/reloaded successfully')
-  logging.info('Listening on port ' .. conf.port)
+  logging.info('Listening on ' .. link)
 
   loop:run()
   conn:close()
@@ -114,7 +117,12 @@ local function main()
   -- Continually loop. If we get a sighup, we'll load the configs again and
   -- restart the server
   while keep_running do
-    local conf = config.load(config_file)
+    local ok, conf = pcall(config.load, config_file)
+
+    if not ok then
+      logging.error(conf)
+      os.exit(1)
+    end
 
     if validate_config then
       logging.info(('Config file %s is valid'):format(config_file))

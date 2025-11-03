@@ -12,22 +12,23 @@ static void set_callback(lua_State* L, void* udata, int index)
   lua_settable(L, LUA_REGISTRYINDEX);
 }
 
+static inline void get_callback(lua_State* L, void* udata)
+{
+  lua_pushlightuserdata(L, udata);
+  lua_gettable(L, LUA_REGISTRYINDEX);
+}
+
 static void on_signal(struct ev_loop* loop, ev_signal* w, int revents)
 {
   lua_State* L = w->data;
-
-  lua_pushlightuserdata(L, w);
-  lua_gettable(L, LUA_REGISTRYINDEX);
-
+  get_callback(L, w);
   lua_call(L, 0, 0);
 }
 
 static void on_readable(struct ev_loop* loop, ev_io* w, int revents)
 {
   lua_State* L = w->data;
-
-  lua_pushlightuserdata(L, w);
-  lua_gettable(L, LUA_REGISTRYINDEX);
+  get_callback(L, w);
 
   ev_io** event = create_instance(L, EVENT_META, sizeof(w));
   *event = w;
