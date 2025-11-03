@@ -8,10 +8,6 @@
 #include "auxlib.h"
 
 static const char* SOCKET_META = "lua_socket";
-static const char* CLIENT_SOCKET_META = "lua_client_socket";
-static const char* EVENT_LOOP_META = "lua_event_loop";
-static const char* FUNC_INDEX = "SERVER_FUNC";
-
 static const int CONNECT = 0;
 static const int BIND = 1;
 
@@ -23,40 +19,6 @@ static inline int* create_socket_udata(lua_State* L, const char* meta, int fd)
   int* conn = create_instance(L, meta, sizeof(fd));
   *conn = fd;
   return conn;
-}
-
-static void on_readable(struct ev_loop* loop, ev_io* w, int revents)
-{
-  lua_State* L = w->data;
-
-  /* Get the server func out of the registry */
-  lua_pushstring(L, FUNC_INDEX);
-  lua_gettable(L, LUA_REGISTRYINDEX);
-
-  int* fd = create_socket_udata(L, CLIENT_SOCKET_META, w->fd);
-
-  lua_call(L, 1, 0);
-
-  close(*fd);
-  ev_io_stop(loop, w);
-  free(w);
-}
-
-static void on_connection(struct ev_loop* loop, ev_io* w, int revents)
-{
-  struct sockaddr_in address;
-  socklen_t addrlen = sizeof(address);
-  int fd = accept(w->fd, (struct sockaddr *)&address, &addrlen);
-
-  if (fd < 0) {
-    return;
-  }
-
-  ev_io* watcher = malloc(sizeof(ev_io));
-  watcher->data = w->data;
-
-  ev_io_init(watcher, on_readable, fd, EV_READ);
-  ev_io_start(loop, watcher);
 }
 
 static int socket_connect(int fd, int conn_type, struct sockaddr* addr, socklen_t len)
@@ -135,23 +97,21 @@ static int socket_listen(lua_State* L)
   return 0;
 }
 
-static int socket_onconnect(lua_State* L)
+static int socket_accept(lua_State* L)
+{
+  int* sock = luaL_checkudata(L, 1, SOCKET_META);
+  struct sockaddr_in address;
+  socklen_t addrlen = sizeof(address);
+  int fd = accept(*sock, (struct sockaddr *)&address, &addrlen);
+  lua_pushinteger(L, fd);
+  return 1;
+}
+
+static int socket_fd(lua_State* L)
 {
   int* fd = luaL_checkudata(L, 1, SOCKET_META);
-  struct ev_loop** loop = luaL_checkudata(L, 2, EVENT_LOOP_META);
-  luaL_checktype(L, 3, LUA_TFUNCTION);
-
-  /* Store the callback in the global registry */
-  lua_pushstring(L, FUNC_INDEX);
-  lua_pushvalue(L, 3);
-  lua_settable(L, LUA_REGISTRYINDEX);
- 
-  /* Set up server watcher */
-  ev_io* w = malloc(sizeof(ev_io));
-  w->data = L;
-  ev_io_init(w, on_connection, *fd, EV_READ);
-  ev_io_start(*loop, w);
-  return 0;
+  lua_pushinteger(L, *fd);
+  return 1;
 }
 
 static int socket_close(lua_State* L)
@@ -209,17 +169,12 @@ static int socket_send(lua_State* L)
   return 0;
 }
 
-static const struct luaL_Reg client_socket_methods[] = {
-  {"recv", socket_recv},
-  {"send", socket_send},
-  {NULL, NULL}
-};
-
 static const struct luaL_Reg socket_methods[] = {
   {"listen", socket_listen},
-  {"onconnect", socket_onconnect},
+  {"accept", socket_accept},
   {"recv", socket_recv},
   {"send", socket_send},
+  {"fd", socket_fd},
   {"close", socket_close},
   {NULL, NULL}
 };
@@ -240,7 +195,6 @@ static const struct luaL_Const socket_constants[] = {
 
 int luaopen_why_socket(lua_State* L)
 {
-  create_class(L, CLIENT_SOCKET_META, client_socket_methods);
   create_class(L, SOCKET_META, socket_methods);
   luaL_newlib(L, socket_funcs);
   create_constants(L, socket_constants);

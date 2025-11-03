@@ -84,6 +84,8 @@ function client.handle(conn)
   if content then
     conn:send(content)
   end
+
+  conn:close()
 end
 
 return client

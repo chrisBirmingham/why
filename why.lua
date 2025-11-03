@@ -25,7 +25,7 @@ Examples:
   why -t -f /etc/why/conf.lua - Test the provided config file]]
 
 local VERSION = '1.0.0'
-local config_file = '/etc/why/conf.lua'
+local DEFAULT_CONFIG_FILE = '/etc/why/conf.lua'
 
 local function create_server(port)
   local conn = socket.tcp(port)
@@ -41,6 +41,8 @@ local function load_files(document_root)
 end
 
 local function run_server(conf)
+  local keep_running = true
+
   logging.info('Loading files')
   load_files(conf.document_root)
   logging.info('Files have been loaded')
@@ -48,14 +50,19 @@ local function run_server(conf)
   local conn = create_server(conf.port)
   local loop = event:new_eventloop()
 
-  conn:onconnect(loop, client_processor.handle)
+  loop:io(conn:fd(), function(client)
+    local fd = conn:accept();
+    loop:io(fd, function(event, client)
+      client_processor.handle(client)
+      event:stop(loop);
+    end)
+  end)
 
   local function kill()
     notify.send(notify.STOPPING, 'Service stopping')
     logging.info('Quitting')
     loop:stop()
-    conn:close()
-    os.exit()
+    keep_running = false
   end
 
   -- Sigint is via terminal
@@ -67,15 +74,19 @@ local function run_server(conf)
     logging.info('Reloading service')
     notify.send(notify.RELOADING)
     loop:stop()
-    conn:close()
   end)
 
   notify.send(notify.READY, 'Service started/reloaded successfully')
   logging.info('Listening on port ' .. conf.port)
+
   loop:run()
+  conn:close()
+
+  return keep_running
 end
 
 local function parse_args()
+  local config_file = DEFAULT_CONFIG_FILE
   local validate_config = false
 
   getopt.parse('vhf:t', function(opt, arg)
@@ -92,16 +103,17 @@ local function parse_args()
     end
   end)
 
-  return validate_config
+  return config_file, validate_config
 end
 
 local function main()
-  local validate_config = parse_args()
+  local keep_running = true
+  local config_file, validate_config = parse_args()
   notify.setup()
 
   -- Continually loop. If we get a sighup, we'll load the configs again and
   -- restart the server
-  while true do
+  while keep_running do
     local conf = config.load(config_file)
 
     if validate_config then
@@ -109,7 +121,7 @@ local function main()
       return
     end
 
-    run_server(conf)
+    keep_running = run_server(conf)
   end
 end
 

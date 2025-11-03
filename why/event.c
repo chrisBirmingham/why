@@ -3,8 +3,9 @@
 #include "auxlib.h"
 
 static const char* EVENT_LOOP_META = "lua_event_loop";
+static const char* EVENT_META = "lua_event";
 
-static void on_signal(struct ev_loop*, ev_signal* w, int revents)
+static void on_signal(struct ev_loop* loop, ev_signal* w, int revents)
 {
   lua_State* L = w->data;
 
@@ -12,6 +13,22 @@ static void on_signal(struct ev_loop*, ev_signal* w, int revents)
   lua_gettable(L, LUA_REGISTRYINDEX);
 
   lua_call(L, 0, 0);
+}
+
+static void on_readable(struct ev_loop* loop, ev_io* w, int revents)
+{
+  lua_State* L = w->data;
+
+  lua_pushlightuserdata(L, w);
+  lua_gettable(L, LUA_REGISTRYINDEX);
+
+  ev_io** event = create_instance(L, EVENT_META, sizeof(w));
+  *event = w;
+
+  int* conn = create_instance(L, "lua_socket", sizeof(w->fd));
+  *conn = w->fd;
+
+  lua_call(L, 2, 0);
 }
 
 static int eventloop_factory(lua_State* L)
@@ -39,6 +56,25 @@ static int eventloop_signal(lua_State* L)
   return 0;
 }
 
+static int eventloop_io(lua_State* L)
+{
+  struct ev_loop** loop = luaL_checkudata(L, 1, EVENT_LOOP_META);
+  int fd = luaL_checkinteger(L, 2);
+  luaL_checktype(L, 3, LUA_TFUNCTION);
+
+  ev_io* watcher = malloc(sizeof(ev_io));
+  watcher->data = L;
+
+  ev_io_init(watcher, on_readable, fd, EV_READ);
+  ev_io_start(*loop, watcher);
+
+  lua_pushlightuserdata(L, watcher);
+  lua_pushvalue(L, 3);
+  lua_settable(L, LUA_REGISTRYINDEX);
+
+  return 0;
+}
+
 static int eventloop_run(lua_State* L)
 {
   struct ev_loop** loop = luaL_checkudata(L, 1, EVENT_LOOP_META);
@@ -53,9 +89,24 @@ static int eventloop_stop(lua_State* L)
   return 0;
 }
 
+static int event_stop(lua_State* L)
+{
+  struct ev_io** w = luaL_checkudata(L, 1, EVENT_META);
+  struct ev_loop** loop = luaL_checkudata(L, 2, EVENT_LOOP_META);
+  ev_io_stop(*loop, *w);
+  free(*w);
+  return 0;
+}
+
+static const struct luaL_Reg event_methods[] = {
+  {"stop", event_stop},
+  {NULL, NULL}
+};
+
 static const struct luaL_Reg eventloop_methods[] = {
   {"run", eventloop_run},
   {"signal", eventloop_signal},
+  {"io", eventloop_io},
   {"stop", eventloop_stop},
   {NULL, NULL}
 };
@@ -75,6 +126,7 @@ static const struct luaL_Const eventloop_constants[] = {
 int luaopen_why_event(lua_State* L)
 {
   create_class(L, EVENT_LOOP_META, eventloop_methods);
+  create_class(L, EVENT_META, event_methods);
   luaL_newlib(L, eventloop_funcs);
   create_constants(L, eventloop_constants);
   return 1;
