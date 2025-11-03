@@ -50,11 +50,11 @@ local function run_server(conf)
   local conn = create_server(conf.port)
   local loop = event:new_eventloop()
 
-  loop:io(conn:fd(), function(client)
-    local fd = conn:accept();
-    loop:io(fd, function(event, client)
+  loop:io(conn:fd(), function()
+    local fd = conn:accept()
+    loop:io(fd, function(ev, client)
       client_processor.handle(client)
-      event:stop(loop);
+      ev:stop(loop);
     end)
   end)
 

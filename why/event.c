@@ -5,11 +5,18 @@
 static const char* EVENT_LOOP_META = "lua_event_loop";
 static const char* EVENT_META = "lua_event";
 
+static void set_callback(lua_State* L, void* udata, int index)
+{
+  lua_pushlightuserdata(L, udata);
+  lua_pushvalue(L, index);
+  lua_settable(L, LUA_REGISTRYINDEX);
+}
+
 static void on_signal(struct ev_loop* loop, ev_signal* w, int revents)
 {
   lua_State* L = w->data;
 
-  lua_pushinteger(L, w->signum);
+  lua_pushlightuserdata(L, w);
   lua_gettable(L, LUA_REGISTRYINDEX);
 
   lua_call(L, 0, 0);
@@ -44,12 +51,11 @@ static int eventloop_signal(lua_State* L)
   int signal = luaL_checkinteger(L, 2);
   luaL_checktype(L, 3, LUA_TFUNCTION);
 
-  lua_pushinteger(L, signal);
-  lua_pushvalue(L, 3);
-  lua_settable(L, LUA_REGISTRYINDEX);
-
   ev_signal* signal_watcher = malloc(sizeof(ev_signal));
   signal_watcher->data = L;
+
+  set_callback(L, signal_watcher, 3);
+
   ev_signal_init(signal_watcher, on_signal, signal);
   ev_signal_start(*loop, signal_watcher);
 
@@ -65,12 +71,10 @@ static int eventloop_io(lua_State* L)
   ev_io* watcher = malloc(sizeof(ev_io));
   watcher->data = L;
 
+  set_callback(L, watcher, 3);
+
   ev_io_init(watcher, on_readable, fd, EV_READ);
   ev_io_start(*loop, watcher);
-
-  lua_pushlightuserdata(L, watcher);
-  lua_pushvalue(L, 3);
-  lua_settable(L, LUA_REGISTRYINDEX);
 
   return 0;
 }
