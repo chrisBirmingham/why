@@ -23,7 +23,7 @@ static int magic_factory(lua_State* L)
     
 static int magic_detect(lua_State* L)
 {
-  magic_t* cookie = (magic_t*)luaL_checkudata(L, 1, MAGIC_META);
+  magic_t* cookie = luaL_checkudata(L, 1, MAGIC_META);
   const char* path = luaL_checkstring(L, 2);
   const char* type = magic_file(*cookie, path);
 
@@ -37,7 +37,7 @@ static int magic_detect(lua_State* L)
 
 static int magic_destruct(lua_State* L)
 {
-  magic_t* cookie = (magic_t*)luaL_checkudata(L, 1, MAGIC_META);
+  magic_t* cookie = luaL_checkudata(L, 1, MAGIC_META);
 
   if (cookie != NULL) {
     magic_close(*cookie);

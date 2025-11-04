@@ -117,7 +117,7 @@ static const struct luaL_Reg eventloop_methods[] = {
 };
 
 static const struct luaL_Reg eventloop_funcs[] = {
-  {"new_eventloop", eventloop_factory},
+  {"eventloop", eventloop_factory},
   {NULL, NULL}
 };
 

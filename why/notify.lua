@@ -18,7 +18,7 @@ function notify.setup()
     return
   end
 
-  sock = socket.unix(path, socket.SOCK_DGRAM, socket.CONNECT)
+  sock = socket.open(path, socket.SOCK_DGRAM, socket.CONNECT)
 end
 
 function notify.send(msg_type, status)

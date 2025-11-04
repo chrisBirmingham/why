@@ -29,8 +29,7 @@ local VERSION = '1.0.0'
 local DEFAULT_CONFIG_FILE = '/etc/why/conf.lua'
 
 local function create_server(link)
-  local factory = type(link) == 'number' and socket.tcp or socket.unix
-  local conn = factory(link)
+  local conn = socket.open(link)
   conn:listen(10)
   return conn
 end
@@ -51,7 +50,7 @@ local function run_server(conf)
   logging.info('Files have been loaded')
 
   local conn = create_server(link)
-  local loop = event:new_eventloop()
+  local loop = event.eventloop()
 
   loop:io(conn:fd(), function()
     local fd = conn:accept()
