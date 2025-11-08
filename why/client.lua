@@ -81,12 +81,7 @@ function client.handle(conn)
     res.headers['Content-Type'] = 'text/html'
   end
 
-  local headers = scgi.response_headers(res)
-  conn:send(headers)
-
-  if content then
-    conn:send(content)
-  end
+  return scgi.response_headers(res), content
 end
 
 return client

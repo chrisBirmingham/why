@@ -56,12 +56,23 @@ local function run_server(conf)
   local conn = create_server(link)
   local loop = event.eventloop()
 
-  loop:io(conn:fd(), function()
+  loop:io(conn:fd(), event.EV_READ, function()
     local fd = conn:accept()
-    loop:io(fd, function(ev, client)
-      client_processor.handle(client)
-      ev:stop(loop);
-      client:close()
+
+    loop:io(fd, event.EV_READ, function(ev_read, client)
+      ev_read:stop(loop);
+      local headers, content = client_processor.handle(client)
+
+      loop:io(fd, event.EV_WRITE, function(ev_write)
+        ev_write:stop(loop)
+        client:send(headers)
+
+        if content then
+          client:send(content)
+        end
+
+        client:close()
+      end)
     end)
   end)
 

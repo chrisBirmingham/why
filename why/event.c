@@ -25,7 +25,7 @@ static void on_signal(struct ev_loop* loop, ev_signal* w, int revents)
   lua_call(L, 0, 0);
 }
 
-static void on_readable(struct ev_loop* loop, ev_io* w, int revents)
+static void on_io(struct ev_loop* loop, ev_io* w, int revents)
 {
   lua_State* L = w->data;
   get_callback(L, w);
@@ -67,14 +67,15 @@ static int eventloop_io(lua_State* L)
 {
   struct ev_loop** loop = luaL_checkudata(L, 1, EVENT_LOOP_META);
   int fd = luaL_checkinteger(L, 2);
-  luaL_checktype(L, 3, LUA_TFUNCTION);
+  int event_type = luaL_checkinteger(L, 3);
+  luaL_checktype(L, 4, LUA_TFUNCTION);
 
   ev_io* watcher = malloc(sizeof(ev_io));
   watcher->data = L;
 
-  set_callback(L, watcher, 3);
+  set_callback(L, watcher, 4);
 
-  ev_io_init(watcher, on_readable, fd, EV_READ);
+  ev_io_init(watcher, on_io, fd, event_type);
   ev_io_start(*loop, watcher);
 
   return 0;
@@ -125,6 +126,8 @@ static const struct luaL_Const eventloop_constants[] = {
   {"SIGTERM", SIGTERM},
   {"SIGINT", SIGINT},
   {"SIGHUP", SIGHUP},
+  {"EV_WRITE", EV_WRITE},
+  {"EV_READ", EV_READ},
   {NULL, 0}
 };
 
