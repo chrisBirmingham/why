@@ -28,7 +28,7 @@ local STATUS_LINES = {
 local ERROR_MESSAGES = {
   [400] = 'Server received an invalid request',
   [404] = 'The requested file doesn\'t exist',
-  [405] = 'The requested HTTP method is not supported',
+  [405] = 'The requested HTTP method is not allowed',
   [500] = 'Server encountered an error while processing the request'
 }
 
@@ -101,8 +101,8 @@ local function parse_headers(request)
   return headers
 end
 
-function scgi.parse_request(request)
-  local headers = parse_headers(request)
+function scgi.parse_request(req)
+  local headers = parse_headers(req)
   validate_headers(headers)
 
   if headers.HTTP_ACCEPT_ENCODING then
@@ -112,12 +112,10 @@ function scgi.parse_request(request)
   return headers
 end
 
-function scgi.build_response(status, headers)
-  headers = headers or {}
+function scgi.response_headers(res)
+  local block = {('Status: %s'):format(STATUS_LINES[res.status])}
 
-  local block = {('Status: %s'):format(STATUS_LINES[status])}
-
-  for k, v in pairs(headers) do
+  for k, v in pairs(res.headers) do
     table.insert(block, ('%s: %s'):format(k, v))
   end
 
@@ -126,18 +124,20 @@ function scgi.build_response(status, headers)
   return table.concat(block, "\r\n")
 end
 
-function scgi.build_error_response(status)
-  local error_page = ERROR_PAGE:gsub('%$(%w+)', {
+function scgi.error_page(status)
+  return ERROR_PAGE:gsub('%$(%w+)', {
     status = STATUS_LINES[status],
     message = ERROR_MESSAGES[status]
   })
+end
 
-  local headers = scgi.build_response(status, {
-    ['Content-Type'] = 'text/html',
-    ['Content-Length'] = #error_page
-  })
+function scgi.response(status, headers)
+  headers = headers or {}
 
-  return headers, error_page
+  return {
+    status = status,
+    headers = headers
+  }
 end
 
 return scgi

@@ -1,7 +1,8 @@
 local ipairs = ipairs
-local table = table
 
-function table.contains(needle, haystack)
+local tablex = {}
+
+function tablex.contains(needle, haystack)
   for _, v in ipairs(haystack) do
     if v == needle then
       return true
@@ -10,4 +11,6 @@ function table.contains(needle, haystack)
 
   return false
 end
+
+return tablex
 

@@ -1,11 +1,10 @@
-require('why.common')
 local fs = require('why.fs')
 local hash = require('why.hash')
 local io = io
 local ipairs = ipairs
 local mimetype = require('why.mimetype')
 local pairs = pairs
-local table = table
+local tablex = require('why.tablex')
 
 local magic = mimetype.open()
 
@@ -75,7 +74,7 @@ function filestore:scan(dir)
     else
       local basename, ext = fs.fnparts(path)
 
-      if not table.contains(ext, {'.gz', '.br'}) then
+      if not tablex.contains(ext, {'.gz', '.br'}) then
         local file = process_file(path, ext)
         self.files[path] = file
 

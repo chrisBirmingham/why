@@ -1,11 +1,11 @@
-require('why.common')
+local error = error
 local filestore = require('why.filestore')
 local ipairs = ipairs
 local logging = require('why.logging')
 local pcall = pcall
 local scgi = require('why.scgi')
 local STATUS = scgi.STATUS
-local table = table
+local tablex = require('why.tablex')
 
 local client = {}
 
@@ -16,17 +16,17 @@ local function process_request(request)
 
   if not ok then
     logging.error('Invalid client request: ' .. headers)
-    return scgi.build_error_response(STATUS.BAD_REQUEST)
+    error(scgi.response(STATUS.BAD_REQUEST))
   end
 
   local method = headers.REQUEST_METHOD
 
-  if not table.contains(method, {'HEAD', 'GET', 'OPTIONS'}) then
-    return scgi.build_error_response(STATUS.METHOD_NOT_ALLOWED, {Allow = ALLOW_HEADER})
+  if not tablex.contains(method, {'HEAD', 'GET', 'OPTIONS'}) then
+    error(scgi.response(STATUS.METHOD_NOT_ALLOWED, {Allow = ALLOW_HEADER}))
   end
 
   if method == 'OPTIONS' then
-    return scgi.build_response(STATUS.NO_CONTENT, {Allow = ALLOW_HEADER})
+    return scgi.response(STATUS.NO_CONTENT, {Allow = ALLOW_HEADER})
   end
 
   local path = headers.DOCUMENT_ROOT .. headers.REQUEST_URI
@@ -35,7 +35,7 @@ local function process_request(request)
 
   if not file then
     logging.error('File not found ' .. path)
-    return scgi.build_error_response(STATUS.NOT_FOUND)
+    error(scgi.response(STATUS.NOT_FOUND))
   end
 
   local content = file.content
@@ -49,7 +49,7 @@ local function process_request(request)
   local none_match = headers.HTTP_IF_NONE_MATCH or ''
 
   if none_match == etag then
-    return scgi.build_response(STATUS.NOT_MODIFIED, {ETag = etag})
+    return scgi.response(STATUS.NOT_MODIFIED, {ETag = etag})
   end
 
   local accept_encoding = headers.HTTP_ACCEPT_ENCODING or {}
@@ -63,7 +63,7 @@ local function process_request(request)
     end
   end
 
-  local response = scgi.build_response(STATUS.OK, res_headers)
+  local response = scgi.response(STATUS.OK, res_headers)
 
   if method == 'HEAD' then
     return response
@@ -73,19 +73,20 @@ local function process_request(request)
 end
 
 function client.handle(conn)
-  local ok, headers, content = pcall(process_request, conn:recv())
+  local ok, res, content = pcall(process_request, conn:recv())
 
   if not ok then
-    headers, content = scgi.build_error_response(STATUS.INTERNAL_SERVER_ERROR)
+    content = scgi.error_page(res.status)
+    res.headers['Content-Length'] = #content
+    res.headers['Content-Type'] = 'text/html'
   end
 
+  local headers = scgi.response_headers(res)
   conn:send(headers)
 
   if content then
     conn:send(content)
   end
-
-  conn:close()
 end
 
 return client

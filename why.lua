@@ -61,6 +61,7 @@ local function run_server(conf)
     loop:io(fd, function(ev, client)
       client_processor.handle(client)
       ev:stop(loop);
+      client:close()
     end)
   end)
 
