@@ -57,21 +57,22 @@ local function run_server(conf)
   local loop = event.eventloop()
 
   loop:io(conn:fd(), event.EV_READ, function()
-    local fd = conn:accept()
+    local client_conn = conn:accept()
+    local client_fd = client_conn:fd()
 
-    loop:io(fd, event.EV_READ, function(ev_read, client)
+    loop:io(client_fd, event.EV_READ, function(ev_read)
       ev_read:stop(loop);
-      local headers, content = client_processor.handle(client)
+      local headers, content = client_processor.handle(client_conn)
 
-      loop:io(fd, event.EV_WRITE, function(ev_write)
+      loop:io(client_fd, event.EV_WRITE, function(ev_write)
         ev_write:stop(loop)
-        client:send(headers)
+        client_conn:send(headers)
 
         if content then
-          client:send(content)
+          client_conn:send(content)
         end
 
-        client:close()
+        client_conn:close()
       end)
     end)
   end)

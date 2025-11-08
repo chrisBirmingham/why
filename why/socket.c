@@ -87,7 +87,7 @@ static int socket_accept(lua_State* L)
 {
   int* sock = luaL_checkudata(L, 1, SOCKET_META);
   int fd = accept(*sock, NULL, NULL);
-  lua_pushinteger(L, fd);
+  create_socket_udata(L, SOCKET_META, fd);
   return 1;
 }
 

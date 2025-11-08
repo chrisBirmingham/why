@@ -33,10 +33,7 @@ static void on_io(struct ev_loop* loop, ev_io* w, int revents)
   ev_io** event = create_instance(L, EVENT_META, sizeof(w));
   *event = w;
 
-  int* conn = create_instance(L, "lua_socket", sizeof(w->fd));
-  *conn = w->fd;
-
-  lua_call(L, 2, 0);
+  lua_call(L, 1, 0);
 }
 
 static int eventloop_factory(lua_State* L)
