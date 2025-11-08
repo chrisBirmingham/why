@@ -57,11 +57,6 @@ static int socket_factory(lua_State* L)
     res = socket_connect(fd, conn_type, (struct sockaddr*)&addr, sizeof(addr));
   } else {
     const char* path = luaL_checkstring(L, 1);
-
-    if (conn_type == BIND && (unlink(path) < 0 && errno != ENOENT)) {
-      luaL_error(L, "Failed to create socket: %s", strerror(errno));
-    }
-
     struct sockaddr_un addr;
     addr.sun_family = AF_UNIX;
     strcpy(addr.sun_path, path);

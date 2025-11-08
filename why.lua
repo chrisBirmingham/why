@@ -4,6 +4,7 @@ local client_processor = require('why.client')
 local config = require('why.config')
 local event = require('why.event')
 local filestore = require('why.filestore')
+local fs = require('why.fs')
 local getopt = require('why.getopt')
 local logging = require('why.logging')
 local notify = require('why.notify')
@@ -11,7 +12,6 @@ local os = os
 local pcall = pcall
 local print = print
 local socket = require('why.socket')
-local type = type
 
 local USAGE = [[Usage: why [OPTIONS] [CONFIG_FILE]
 A SCGI static file server
@@ -49,6 +49,10 @@ local function run_server(conf)
   load_files(conf.document_root)
   logging.info('Files have been loaded')
 
+  if conf.socket and fs.exist(conf.socket) then
+    os.remove(conf.socket)
+  end
+
   local conn = create_server(link)
   local loop = event.eventloop()
 
@@ -83,6 +87,11 @@ local function run_server(conf)
 
   loop:run()
   conn:close()
+
+  -- Cleanup after ourselves
+  if conf.socket then
+    os.remove(conf.socket)
+  end
 
   return keep_running
 end
