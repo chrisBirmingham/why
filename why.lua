@@ -38,6 +38,17 @@ local function safe_send(conn, buffer)
   return ok
 end
 
+local function safe_recv(conn)
+  local ok, bufforerr = pcall(conn.recv, conn)
+
+  if not ok then
+    logging.error('Failed to read from client connection. ' .. bufforerr)
+    return ok
+  end
+
+  return bufforerr
+end
+
 local function create_server(link)
   local conn = socket.open(link)
   conn:listen(10)
@@ -72,10 +83,9 @@ local function run_server(conf)
 
     loop:io(client_fd, event.EV_READ, function(ev_read)
       ev_read:stop(loop);
-      local buff = client_conn:recv()
+      local buff = safe_recv(client_conn)
 
       if not buff then
-        logging.error('Failed to read from client connection. ' .. buff)
         return
       end
 
