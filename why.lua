@@ -28,6 +28,16 @@ Examples:
 local VERSION = '1.0.0'
 local DEFAULT_CONFIG_FILE = '/etc/why/conf.lua'
 
+local function safe_send(conn, buffer)
+  local ok, err = pcall(conn.send, conn, buffer)
+
+  if not ok then
+    logging.error('Failed to send back to client. ' .. err)
+  end
+
+  return ok
+end
+
 local function create_server(link)
   local conn = socket.open(link)
   conn:listen(10)
@@ -62,14 +72,21 @@ local function run_server(conf)
 
     loop:io(client_fd, event.EV_READ, function(ev_read)
       ev_read:stop(loop);
-      local headers, content = client_processor.handle(client_conn)
+      local buff = client_conn:recv()
+
+      if not buff then
+        logging.error('Failed to read from client connection. ' .. buff)
+        return
+      end
+
+      local headers, content = client_processor.handle(buff)
 
       loop:io(client_fd, event.EV_WRITE, function(ev_write)
         ev_write:stop(loop)
-        client_conn:send(headers)
+        local ok = safe_send(client_conn, headers)
 
-        if content then
-          client_conn:send(content)
+        if ok and content then
+          safe_send(client_conn, content)
         end
 
         client_conn:close()

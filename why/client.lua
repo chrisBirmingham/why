@@ -22,6 +22,7 @@ local function process_request(request)
   local method = headers.REQUEST_METHOD
 
   if not tablex.contains(method, {'HEAD', 'GET', 'OPTIONS'}) then
+    logging.error('Invalid method requested ' .. method)
     error(scgi.response(STATUS.METHOD_NOT_ALLOWED, {Allow = ALLOW_HEADER}))
   end
 
@@ -72,8 +73,8 @@ local function process_request(request)
   return response, content
 end
 
-function client.handle(conn)
-  local ok, res, content = pcall(process_request, conn:recv())
+function client.handle(request)
+  local ok, res, content = pcall(process_request, request)
 
   if not ok then
     content = scgi.error_page(res.status)

@@ -77,7 +77,7 @@ static int socket_listen(lua_State* L)
   int backlog = luaL_checkinteger(L, 2);
 
   if (listen(*fd, backlog) < 0) {
-    luaL_error(L, "Faled to listen to socket: %s", strerror(errno));
+    luaL_error(L, "Failed to listen to socket: %s", strerror(errno));
   }
 
   return 0;
@@ -101,6 +101,7 @@ static int socket_fd(lua_State* L)
 static int socket_close(lua_State* L)
 {
   int* fd = luaL_checkudata(L, 1, SOCKET_META);
+  shutdown(*fd, SHUT_RDWR);
   close(*fd);
   return 0;
 }
@@ -117,7 +118,7 @@ static int socket_recv(lua_State* L)
     bytes = recv(*fd, buffer, BUFFER_SIZE, 0);
 
     if (bytes < 0) {
-      luaL_error(L, "Failed to read new connection: %s", strerror(errno));
+      luaL_error(L, "Failed to read from connection: %s", strerror(errno));
     }
 
     luaL_addlstring(&buf, buffer, bytes);
@@ -141,7 +142,7 @@ static int socket_send(lua_State* L)
   size_t left = len;
 
   while (written < len) {
-    int n = write(*fd, buffer + written, left);
+    int n = send(*fd, buffer + written, left, MSG_NOSIGNAL);
 
     if (n < 0) {
       luaL_error(L, "Failed to send packet: %s", strerror(errno));
