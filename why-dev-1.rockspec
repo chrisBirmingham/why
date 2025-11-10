@@ -1,14 +1,11 @@
 package = 'why'
 version = 'dev-1'
 source = {
-  url = "git+ssh://git@git.intermaterium.com/intermaterium/why.git"
+  url = "https://github.com/chrisBirmingham/why.git"
 }
 description = {
-  summary = 'A Lua SCGI web server.',
-  detailed = [[
-A Lua SCGI web server that reads all files within the document root and stores
-them into memory. When serving requests, Why doesn't make any filesystem
-accesses and serves everything from memory.]],
+  summary = 'A SCGI static file server.',
+  detailed = [[An event driven Lua SCGI web server that serves all requests from memory. Influenced by StaticHttpFileServer.]],
   homepage = "*** please enter a project homepage ***",
   license = 'Unlicense'
 }
