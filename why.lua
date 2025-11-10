@@ -123,7 +123,7 @@ local function run_server(conf)
   end)
 
   local msg = 'Listening on ' .. link
-  notify.send(notify.READY, 'Service running: ' msg)
+  notify.send(notify.READY, 'Service running: ' .. msg)
   logging.info(msg)
 
   loop:run()
