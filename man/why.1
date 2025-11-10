@@ -1,0 +1,30 @@
+.TH why 1
+.SH NAME
+A SCGI static file server
+.SH SYNOPSIS
+.B why [OPTIONS] [CONFIG_FILE]
+.SH DESCRIPTION
+An event driven Lua SCGI web server that serves all requests from memory. Influenced by StaticHttpFileServer
+.SH OPTIONS
+.TP
+.BR \-f\ \fIconfig\fR
+Filename of the config file (Default /etc/why/conf.lua)
+.TP
+.BR \-t
+Test the config file and exit
+.TP
+.BR \-h
+Shows options summary
+.TP
+.BR \-v
+Prints version information
+.SH EXAMPLES
+.TP
+.BR why\ -f\ /etc/why/conf.lua 
+Use this file as Why's config
+.TP
+.BR why\ -t\ -f\ /etc/why/conf.lua
+Test the provided config file
+.SH AUTHOR
+why was written by Christopher Birmingham
+

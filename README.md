@@ -75,6 +75,7 @@ Why's config file is lua file like so:
 ```lua
 return {
     port = 8000,
+    socket = '/var/run/why.sock',
     document_root = '/var/www/html'
 }
 ```
@@ -85,8 +86,8 @@ The config file includes these options:
 * port - The tcp port to listen on
 * socket - The absolute filepath to the unix domain socket
 
-You must provide the `document_root` value and must provide either the `port`
-or `socket` values.
+The `document_root` config value is required meanwhile you must provide either
+the `port` or `socket` config value.
 
 ## Setup
 
@@ -137,4 +138,33 @@ You can also run Why as a Systemd service. I have provided an exmaple Systemd
 service file within this repo. Why also supports a systemd reload request via
 a `SIGHUP` signal. This will cause Why to stop the server, reread it's config
 file, load the files back into memory and restart the server.
+
+## Why
+
+A very good question.
+
+When I was a lot younger than I am now, I started learning the Lua programming
+language after a friend introduced it to me and I immediately fell in love with
+it. The language is both simple but hugely powerful, even before playing around
+with it's C API. Since learning Lua, I've always wanted to build a largish Lua
+project but could never settle on an idea. That was until I discovered
+Andrewrk's StaticHttpFileServer.
+
+I had dabbled with the Lua C API before and libev and remember both of them
+being rather easy to use but never used them in anger, thus I wanted to use
+this project as an excuse to learn both. Because of that, stuff like
+Luafilesystem and Luasocket were off the table and I would implement the
+features myself. Overall it's been a really fun experience.
+
+### Should I use this?
+
+Probably not. It's probably full of bugs and will randomly crash but if anyone
+does find a use for it, it would make me deeply happy.
+
+## Attributions
+
+* [StaticHttpFileServer](https://github.com/andrewrk/StaticHttpFileServer)
+which inspired me to make this this project.
+* [murmurhash3-lua](https://github.com/x25/murmurhash3-lua/tree/master) for the
+murmurhash3 implementation.
 

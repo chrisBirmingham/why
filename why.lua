@@ -122,8 +122,9 @@ local function run_server(conf)
     loop:stop()
   end)
 
-  notify.send(notify.READY, 'Service started/reloaded successfully')
-  logging.info('Listening on ' .. link)
+  local msg = 'Listening on ' .. link
+  notify.send(notify.READY, 'Service running: ' msg)
+  logging.info(msg)
 
   loop:run()
   conn:close()

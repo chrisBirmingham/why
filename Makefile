@@ -9,8 +9,10 @@ PROG?=why
 PREFIX?=/usr/local
 LUA_VERSION=5.4
 
-SHARE_DIR=$(PREFIX)/share/lua/$(LUA_VERSION)/$(PROG)
-LIB_DIR=$(PREFIX)/lib/lua/$(LUA_VERSION)/$(PROG)
+SHAREDIR=$(PREFIX)/share/lua/$(LUA_VERSION)/$(PROG)
+LIBDIR=$(PREFIX)/lib/lua/$(LUA_VERSION)/$(PROG)
+BINDIR=$(PREFIX)/bin
+MANDIR=$(PREFIX)/share/man/man1/
 
 .PHONEY: all install uninstall clean
 
@@ -23,18 +25,21 @@ all: $(SHARED)
 	$(CC) -shared $(CFLAGS) $< -o $@ $(CLIB)
 
 install:
-	mkdir -p $(SHARE_DIR)
-	cp why/*.lua $(SHARE_DIR)
-	mkdir -p $(LIB_DIR)
-	cp why/*.so $(LIB_DIR)
-	cp why.lua $(PREFIX)/bin/$(PROG)
+	mkdir -p $(SHAREDIR)
+	cp why/*.lua $(SHAREDIR)
+	mkdir -p $(LIBDIR)
+	cp why/*.so $(LIBDIR)
+	cp why.lua $(BINDIR)/$(PROG)
+	mkdir -p $(MANDIR)
+	cp man/why.1 $(MANDIR)
 	mkdir -p /etc/why
 	cp config/conf.lua /etc/why
 
 uninstall:
-	rm -rf $(SHARE_DIR)
-	rm -rf $(LIB_DIR)
-	rm -f $(PREFIX)/bin/$(PROG)
+	rm -rf $(SHAREDIR)
+	rm -rf $(LIBDIR)
+	rm -f $(BINDIR)/$(PROG)
+	rm -f $(MANDIR)/why.1
 	rm -f /etc/why/conf.lua
 
 clean:
