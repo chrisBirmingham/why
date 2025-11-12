@@ -1,10 +1,11 @@
 local fs = require('why.fs')
 local hash = require('why.hash')
+local mimetype = require('why.mimetype')
+local tablex = require('why.tablex')
+
 local io = io
 local ipairs = ipairs
-local mimetype = require('why.mimetype')
 local pairs = pairs
-local tablex = require('why.tablex')
 
 local magic = mimetype.open()
 

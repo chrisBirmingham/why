@@ -1,5 +1,6 @@
-local os = os
 local socket = require('why.socket')
+
+local os = os
 
 local NOTIFY_SOCKET = 'NOTIFY_SOCKET'
 

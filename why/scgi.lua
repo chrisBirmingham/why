@@ -4,6 +4,7 @@ local table = table
 local tonumber = tonumber
 
 local scgi = {}
+local error_pages = {}
 
 scgi.STATUS = {
   OK = 200,
@@ -56,36 +57,36 @@ local function split_header(header)
   return items
 end
 
-local function validate_headers(headers)
-	-- enforce base 10, we should never have CONTENT_LENGTH: 0xFF (lol)
-	if not tonumber(headers.CONTENT_LENGTH, 10) then
-		error('CONTENT_LENGTH header value is not a number')
-	end
+function scgi.validate_request(request)
+  -- enforce base 10, we should never have CONTENT_LENGTH: 0xFF (lol)
+  if not tonumber(request.CONTENT_LENGTH, 10) then
+    error('CONTENT_LENGTH header value is not a number')
+  end
 
-  if not headers.SCGI then
+  if not request.SCGI then
     error('Missing SCGI header')
   end
 
-	if headers.SCGI ~= '1' then
-		error('SCGI header value is not 1')
-	end
+  if request.SCGI ~= '1' then
+    error('SCGI header value is not 1')
+  end
 end
 
-local function parse_headers(request)
+function scgi.parse_request(request)
   local netsize, scgistart = request:match('^(%d+):()')
 
-	if not netsize then
-		error('Missing starting netstring')
-	end
+  if not netsize then
+    error('Missing starting netstring')
+  end
 
-	local head = request:sub(scgistart, scgistart + netsize)
+  local head = request:sub(scgistart, scgistart + netsize)
   local headers = {}
   local first_header = true
 
-	for k, v in head:gmatch('(%Z+)%z(%Z*)%z') do
-		if headers[k] then
-			error('Duplicate SCGI header encountered')
-		end
+  for k, v in head:gmatch('(%Z+)%z(%Z*)%z') do
+    if headers[k] then
+      error('Duplicate SCGI header encountered')
+    end
 
     if first_header then
       first_header = false
@@ -95,15 +96,8 @@ local function parse_headers(request)
       end
     end
 
-		headers[k] = v
-	end
-
-  return headers
-end
-
-function scgi.parse_request(req)
-  local headers = parse_headers(req)
-  validate_headers(headers)
+    headers[k] = v
+  end
 
   if headers.HTTP_ACCEPT_ENCODING then
     headers.HTTP_ACCEPT_ENCODING = split_header(headers.HTTP_ACCEPT_ENCODING)
@@ -125,10 +119,17 @@ function scgi.response_headers(res)
 end
 
 function scgi.error_page(status)
-  return ERROR_PAGE:gsub('%$(%w+)', {
+  if error_pages[status] then
+    return error_pages[status]
+  end
+
+  local page = ERROR_PAGE:gsub('%$(%w+)', {
     status = STATUS_LINES[status],
     message = ERROR_MESSAGES[status]
   })
+
+  error_pages[status] = page
+  return page
 end
 
 function scgi.response(status, headers)
