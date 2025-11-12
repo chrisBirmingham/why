@@ -167,4 +167,5 @@ does find a use for it, it would make me deeply happy.
 which inspired me to make this this project.
 * [murmurhash3-lua](https://github.com/x25/murmurhash3-lua/tree/master) for the
 murmurhash3 implementation.
+* [scgi-server.lua](https://github.com/blitmap/lua-snippets/blob/master/scgi-server.lua) for the original scgi request parsing.
 
