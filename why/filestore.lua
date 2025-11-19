@@ -7,7 +7,6 @@ local io = io
 local ipairs = ipairs
 local os = os
 local pairs = pairs
-local table = table
 
 local magic = mimetype.open()
 
@@ -76,10 +75,10 @@ function filestore.scan(document_root)
 
         if not tablex.contains(ext, {'.gz', '.br'}) then
           local is_index = basename == 'index.html'
-          table.insert(processed_files, path)
+          processed_files[path] = 1
 
           if is_index then
-            table.insert(processed_files, dir)
+            processed_files[dir] = 1
           end
 
           -- Check to see if we haven't already processed this file or if the
@@ -102,7 +101,7 @@ function filestore.scan(document_root)
 
   -- Remove any files that have since been removed
   for file, _ in pairs(files) do
-    if not tablex.contains(file, processed_files) then
+    if not processed_files[file] then
       files[file] = nil
     end
   end

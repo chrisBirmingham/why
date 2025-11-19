@@ -1,7 +1,6 @@
 local filestore = require('why.filestore')
 local logging = require('why.logging')
 local scgi = require('why.scgi')
-local tablex = require('why.tablex')
 
 local ipairs = ipairs
 local pcall = pcall
@@ -9,6 +8,13 @@ local STATUS = scgi.STATUS
 
 local client = {}
 
+local ALLOWED_METHODS = {
+  HEAD = 1,
+  GET = 1,
+  OPTIONS = 1
+}
+
+local ENCODINGS = {'br', 'gzip'}
 local ALLOW_HEADER = 'HEAD, GET, OPTIONS'
 local DEFAULT_FIELD = '-'
 
@@ -34,7 +40,7 @@ end
 local function process_request(request)
   local method = request.REQUEST_METHOD
 
-  if not tablex.contains(method, {'HEAD', 'GET', 'OPTIONS'}) then
+  if not ALLOWED_METHODS[method] then
     return scgi.response(STATUS.METHOD_NOT_ALLOWED, {Allow = ALLOW_HEADER})
   end
 
@@ -66,7 +72,7 @@ local function process_request(request)
 
   local accept_encoding = request.HTTP_ACCEPT_ENCODING or {}
 
-  for _, encoding in ipairs({'br', 'gzip'}) do
+  for _, encoding in ipairs(ENCODINGS) do
     if accept_encoding[encoding] and file[encoding] then
       res_headers['Content-Encoding'] = encoding
       res_headers['Content-Length'] = file[encoding].length
