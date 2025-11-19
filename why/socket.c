@@ -25,6 +25,13 @@ static inline int* create_socket_udata(lua_State* L, const char* meta, int fd)
 static int socket_connect(int fd, int conn_type, struct sockaddr* addr, socklen_t len)
 {
   if (conn_type) {
+    /*
+     * Let us reuse sockets after closing them. Should address Alread in use
+     * issues
+     */
+    const int enable = 1;
+    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(enable));
+
     return bind(fd, addr, len);
   }
 

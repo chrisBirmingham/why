@@ -5,7 +5,9 @@ local tablex = require('why.tablex')
 
 local io = io
 local ipairs = ipairs
+local os = os
 local pairs = pairs
+local table = table
 
 local magic = mimetype.open()
 
@@ -43,6 +45,7 @@ local function process_file(path, ext)
   local content = slurp(path)
 
   local file = {
+    mtime = fs.mtime(path),
     mime = COMMON_MIMETYPES[ext] or magic:detect(path),
     length = #content,
     content = content,
@@ -53,37 +56,55 @@ local function process_file(path, ext)
   return file
 end
 
-local filestore = {
-  files = {},
-  document_root = ''
-}
+local filestore = {}
+local files = {}
 
-function filestore:clear()
-  self.files = {}
+function filestore.get(path)
+  return files[path] or nil
 end
 
-function filestore:get(path)
-  return self.files[path] or nil
-end
+function filestore.scan(document_root)
+  local unix_epoch = os.time()
+  local processed_files = {}
 
-function filestore:scan(dir)
-  dir = dir or self.document_root
+  local function loop(dir)
+    for _, path in ipairs(fs.scandir(dir)) do
+      if fs.is_dir(path) then
+        loop(path)
+      else
+        local basename, ext = fs.fnparts(path)
 
-  for _, path in ipairs(fs.scandir(dir)) do
-    if fs.is_dir(path) then
-      self:scan(path)
-    else
-      local basename, ext = fs.fnparts(path)
+        if not tablex.contains(ext, {'.gz', '.br'}) then
+          print(path)
+          local is_index = basename == 'index.html'
+          table.insert(processed_files, path)
 
-      if not tablex.contains(ext, {'.gz', '.br'}) then
-        local file = process_file(path, ext)
-        self.files[path] = file
+          if is_index then
+            table.insert(processed_files, dir)
+          end
 
-        -- If we have an index file, alias the directory to it
-        if basename == 'index.html' then
-          self.files[dir] = file
+          -- Check to see if we haven't already processed this file or if the
+          -- file's been modifed in the meantime
+          if not files[path] or unix_epoch > files[path].mtime then
+            local file = process_file(path, ext)
+            files[path] = file
+
+            -- If we have an index file, alias the directory to it
+            if is_index then
+              files[dir] = file
+            end
+          end
         end
       end
+    end
+  end
+
+  loop(document_root)
+
+  -- Remove any files that have since been removed
+  for file, _ in pairs(files) do
+    if not tablex.contains(file, processed_files) then
+      files[file] = nil
     end
   end
 end

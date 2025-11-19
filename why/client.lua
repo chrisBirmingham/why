@@ -44,7 +44,7 @@ local function process_request(request)
 
   local path = request.DOCUMENT_ROOT .. request.REQUEST_URI
 
-  local file = filestore:get(path)
+  local file = filestore.get(path)
 
   if not file then
     return scgi.response(STATUS.NOT_FOUND)

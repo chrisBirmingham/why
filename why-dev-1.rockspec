@@ -16,7 +16,6 @@ build = {
   type = 'builtin',
   modules = {
     ['why.config'] = 'why/config.lua',
-    ['why.common'] = 'why/common.lua',
     ['why.client'] = 'why/client.lua',
     ['why.event'] = {
       sources = 'why/event.c',
@@ -42,7 +41,8 @@ build = {
     ['why.socket'] = {
       sources = 'why/socket.c',
       libraries = {'ev'}
-    }
+    },
+    ['why.tablex'] = 'why/tablex.lua'
   },
   install = {
     bin = {

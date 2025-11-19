@@ -8,10 +8,11 @@ local fs = require('why.fs')
 local getopt = require('why.getopt')
 local logging = require('why.logging')
 local notify = require('why.notify')
+local socket = require('why.socket')
+
 local os = os
 local pcall = pcall
 local print = print
-local socket = require('why.socket')
 
 local USAGE = [[Usage: why [OPTIONS] [CONFIG_FILE]
 A SCGI static file server
@@ -57,9 +58,7 @@ end
 
 local function load_files(document_root)
   logging.info('Document root is ' .. document_root)
-  filestore.document_root = document_root
-  filestore:clear()
-  filestore:scan()
+  filestore.scan(document_root)
 end
 
 local function run_server(conf)

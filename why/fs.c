@@ -36,6 +36,19 @@ static int fs_exist(lua_State* L)
   return 1;
 }
 
+static int fs_mtime(lua_State* L)
+{
+  const char* path = luaL_checkstring(L, 1);
+  struct stat buffer;
+
+  if (stat(path, &buffer) < 0) {
+    luaL_error(L, "cannot stat %s: %s", path, strerror(errno));
+  }
+
+  lua_pushinteger(L, buffer.st_mtime);
+  return 1;
+}
+
 static int is_dir(lua_State* L)
 {
   const char* path = luaL_checkstring(L, 1);
@@ -90,6 +103,7 @@ static int fs_scandir(lua_State* L)
 
 static const struct luaL_Reg fs_funcs[] = {
   {"exist", fs_exist},
+  {"mtime", fs_mtime},
   {"fnparts", fs_fnparts},
   {"scandir", fs_scandir},
   {"is_dir", is_dir},
