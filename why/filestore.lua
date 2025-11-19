@@ -75,7 +75,6 @@ function filestore.scan(document_root)
         local basename, ext = fs.fnparts(path)
 
         if not tablex.contains(ext, {'.gz', '.br'}) then
-          print(path)
           local is_index = basename == 'index.html'
           table.insert(processed_files, path)
 
