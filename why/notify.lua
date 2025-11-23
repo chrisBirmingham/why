@@ -1,13 +1,14 @@
 local socket = require('why.socket')
 
 local os = os
+local table = table
 
 local NOTIFY_SOCKET = 'NOTIFY_SOCKET'
 
 local notify = {
-  READY = 'READY=1',
-  RELOADING = 'RELOADING=1',
-  STOPPING = 'STOPPING=1'
+  READY = 'READY=1\n',
+  RELOADING = 'RELOADING=1\n',
+  STOPPING = 'STOPPING=1\n'
 }
 
 local sock = nil
@@ -27,13 +28,13 @@ function notify.send(msg_type, status)
     return
   end
 
-  local message = msg_type
+  local message = {msg_type}
 
   if status then
-    message = ("%s\nSTATUS=%s"):format(msg_type, status)
+    table.insert(message, ("STATUS=%s\n"):format(status))
   end
 
-  sock:send(message .. '\n')
+  sock:send(message)
 end
 
 return notify
