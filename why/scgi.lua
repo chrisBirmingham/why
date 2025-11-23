@@ -4,7 +4,6 @@ local table = table
 local tonumber = tonumber
 
 local scgi = {}
-local error_pages = {}
 
 scgi.STATUS = {
   OK = 200,
@@ -106,38 +105,46 @@ function scgi.parse_request(request)
   return headers
 end
 
-function scgi.response_headers(res)
-  local block = {('Status: %s'):format(STATUS_LINES[res.status])}
+function scgi.build_response(res)
+  local block = {('Status: %s\r\n'):format(STATUS_LINES[res.status])}
 
   for k, v in pairs(res.headers) do
-    table.insert(block, ('%s: %s'):format(k, v))
+    table.insert(block, ('%s: %s\r\n'):format(k, v))
   end
 
   table.insert(block, "\r\n")
 
-  return table.concat(block, "\r\n")
-end
-
-function scgi.error_page(status)
-  if error_pages[status] then
-    return error_pages[status]
+  if res.content then
+    table.insert(block, res.content)
   end
 
-  local page = ERROR_PAGE:gsub('%$(%w+)', {
+  return block
+end
+
+local function error_page(status)
+  return ERROR_PAGE:gsub('%$(%w+)', {
     status = STATUS_LINES[status],
     message = ERROR_MESSAGES[status]
   })
-
-  error_pages[status] = page
-  return page
 end
 
-function scgi.response(status, headers)
+function scgi.error_response(status, headers)
+  local content = error_page(status)
+  headers = headers or {}
+  headers['Content-Length'] = #content
+  headers['Content-Type'] = 'text/html'
+
+  local res = scgi.response(status, headers, content)
+  return scgi.build_response(res)
+end
+
+function scgi.response(status, headers, content)
   headers = headers or {}
 
   return {
     status = status,
-    headers = headers
+    headers = headers,
+    content = content
   }
 end
 

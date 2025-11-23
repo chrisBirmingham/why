@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <arpa/inet.h>
 #include <sys/un.h>
+#include <sys/uio.h>
 #include <unistd.h>
 #include "auxlib.h"
 
@@ -138,25 +139,29 @@ static int socket_recv(lua_State* L)
 static int socket_send(lua_State* L)
 {
   int* fd = lua_touserdata(L, 1);
-  size_t len;
-  const char* buffer = luaL_checklstring(L, 2, &len);
+  luaL_checktype(L, 2, LUA_TTABLE);
 
-  if (len == 0) {
-    return 0;
+  int len = luaL_len(L, 2);
+  struct iovec* bufs = malloc(sizeof(struct iovec) * len);
+
+  lua_pushnil(L);
+
+  int i = 0;
+  while (lua_next(L, 2) != 0) {
+    struct iovec b = {
+      .iov_base = (void*)lua_tostring(L, -1),
+      .iov_len = luaL_len(L, -1)
+    };
+    bufs[i++] = b;
+    lua_pop(L, 1);
   }
 
-  size_t written = 0;
-  size_t left = len;
-
-  while (written < len) {
-    int n = send(*fd, buffer + written, left, MSG_NOSIGNAL);
-
-    if (n < 0) {
-      luaL_error(L, "Failed to send packet: %s", strerror(errno));
-    }
-    written += n;
-    left -= n;
+  int n = writev(*fd, bufs, len);
+  if (n < 0) {
+    luaL_error(L, "Failed to send packet: %s", strerror(errno));
   }
+
+  free(bufs);
   
   return 0;
 }

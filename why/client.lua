@@ -7,6 +7,7 @@ local pcall = pcall
 local STATUS = scgi.STATUS
 
 local client = {}
+local ERROR_RESPONSES = {}
 
 local ALLOWED_METHODS = {
   HEAD = 1,
@@ -24,24 +25,27 @@ local function log_request(request, status, size)
     request.REQUEST_METHOD or DEFAULT_FIELD,
     request.REQUEST_URI or DEFAULT_FIELD,
     request.SERVER_PROTOCOL or DEFAULT_FIELD,
-    status,
-    size
+    status or STATUS.BAD_REQUEST,
+    size or 0
   )
   logging.info(msg)
 end
 
-local function error_response(res)
-  local content = scgi.error_page(res.status)
-  res.headers['Content-Length'] = #content
-  res.headers['Content-Type'] = 'text/html'
-  return content
+local function error_response(status, headers)
+  if ERROR_RESPONSES[status] then
+    return ERROR_RESPONSES[status]
+  end
+
+  local res = scgi.error_response(status, headers)
+  ERROR_RESPONSES[status] = res
+  return res
 end
 
 local function process_request(request)
   local method = request.REQUEST_METHOD
 
   if not ALLOWED_METHODS[method] then
-    return scgi.response(STATUS.METHOD_NOT_ALLOWED, {Allow = ALLOW_HEADER})
+    return error_response(STATUS.METHOD_NOT_ALLOWED, {Allow = ALLOW_HEADER})
   end
 
   if method == 'OPTIONS' then
@@ -53,7 +57,7 @@ local function process_request(request)
   local file = filestore.get(path)
 
   if not file then
-    return scgi.response(STATUS.NOT_FOUND)
+    return error_response(STATUS.NOT_FOUND)
   end
 
   local content = file.content
@@ -81,19 +85,16 @@ local function process_request(request)
     end
   end
 
-  local response = scgi.response(STATUS.OK, res_headers)
-
   if method == 'HEAD' then
-    return response
+    return scgi.response(STATUS.OK, res_headers)
   end
 
-  return response, content
+  return scgi.response(STATUS.OK, res_headers, content)
 end
 
 function client.handle(request)
   local ok, err
-  local res = scgi.response(STATUS.BAD_REQUEST)
-  local content = error_response(res)
+  local res = error_response(STATUS.BAD_REQUEST)
 
   ok, request = pcall(scgi.parse_request, request)
 
@@ -101,25 +102,20 @@ function client.handle(request)
   -- log in the access log so send to error log
   if not ok then
     logging.error(request)
-    return scgi.response_headers(res), content
+    return res
   end
 
   ok, err = pcall(scgi.validate_request, request)
 
   if not ok then
     logging.error(err)
-    log_request(request, res.status, #content)
-    return scgi.response_headers(res), content
+    log_request(request, res.status, res.headers['Content-Length'])
+    return res
   end
 
-  res, content = process_request(request)
-
-  if res.status >= 400 then
-    content = error_response(res)
-  end
-
-  log_request(request, res.status, #(content or ''))
-  return scgi.response_headers(res), content
+  res = process_request(request)
+  log_request(request, res.status, res.headers['Content-Length'])
+  return scgi.build_response(res)
 end
 
 return client

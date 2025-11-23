@@ -35,8 +35,6 @@ local function safe_send(conn, buffer)
   if not ok then
     logging.error('Failed to send back to client. ' .. err)
   end
-
-  return ok
 end
 
 local function safe_recv(conn)
@@ -88,16 +86,11 @@ local function run_server(conf)
         return
       end
 
-      local headers, content = client_processor.handle(buff)
+      local res = client_processor.handle(buff)
 
       loop:io(client_fd, event.EV_WRITE, function(ev_write)
         ev_write:stop(loop)
-        local ok = safe_send(client_conn, headers)
-
-        if ok and content then
-          safe_send(client_conn, content)
-        end
-
+        safe_send(client_conn, res)
         client_conn:close()
       end)
     end)
