@@ -109,11 +109,10 @@ function client.handle(request)
 
   if not ok then
     logging.error(err)
-    log_request(request, res.status, res.headers['Content-Length'] or 0)
-    return res
+  else
+    res = process_request(request)
   end
 
-  res = process_request(request)
   log_request(request, res.status, res.headers['Content-Length'] or 0)
   return scgi.build_response(res)
 end

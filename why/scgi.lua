@@ -130,12 +130,12 @@ end
 
 function scgi.error_response(status, headers)
   local content = error_page(status)
+
   headers = headers or {}
   headers['Content-Length'] = #content
   headers['Content-Type'] = 'text/html'
 
-  local res = scgi.response(status, headers, content)
-  return scgi.build_response(res)
+  return scgi.response(status, headers, content)
 end
 
 function scgi.response(status, headers, content)
