@@ -56,18 +56,43 @@ local function split_header(header)
   return items
 end
 
-function scgi.validate_request(request)
+function scgi.bad_request(msg, req)
+  error({
+    status = scgi.STATUS.BAD_REQUEST,
+    msg = msg,
+    req = req
+  })
+end
+
+function scgi.not_found(req)
+  error({
+    status = scgi.STATUS.NOT_FOUND,
+    req = req
+  })
+end
+
+function scgi.method_not_allowed(allow_header, req)
+  error({
+    status = scgi.STATUS.METHOD_NOT_ALLOWED,
+    headers = {
+      Allow = allow_header
+    },
+    req = req
+  })
+end
+
+function scgi.validate_request(req)
   -- enforce base 10, we should never have CONTENT_LENGTH: 0xFF (lol)
-  if not tonumber(request.CONTENT_LENGTH, 10) then
-    error('CONTENT_LENGTH header value is not a number')
+  if not tonumber(req.CONTENT_LENGTH, 10) then
+    scgi.bad_request('CONTENT_LENGTH header value is not a number', req)
   end
 
-  if not request.SCGI then
-    error('Missing SCGI header')
+  if not req.SCGI then
+    scgi.bad_request('Missing SCGI header', req)
   end
 
-  if request.SCGI ~= '1' then
-    error('SCGI header value is not 1')
+  if req.SCGI ~= '1' then
+    scgi.bad_request('SCGI header value is not 1', req)
   end
 end
 
@@ -75,7 +100,7 @@ function scgi.parse_request(request)
   local netsize, scgistart = request:match('^(%d+):()')
 
   if not netsize then
-    error('Missing starting netstring')
+    scgi.bad_request('Missing starting netstring')
   end
 
   local head = request:sub(scgistart, scgistart + netsize)
@@ -84,14 +109,14 @@ function scgi.parse_request(request)
 
   for k, v in head:gmatch('(%Z+)%z(%Z*)%z') do
     if headers[k] then
-      error('Duplicate SCGI header encountered')
+      scgi.bad_request('Duplicate SCGI header encountered')
     end
 
     if first_header then
       first_header = false
 
       if k ~= 'CONTENT_LENGTH' then
-        error('CONTENT_LENGTH was not the first header')
+        scgi.bad_request('CONTENT_LENGTH was not the first header')
       end
     end
 
